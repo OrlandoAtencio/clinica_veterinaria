@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mantenimiento del Sistema</title>
+    <link rel="stylesheet" href="../css/system-maintenance.css">
+</head>
+
+<body class="page-background">
+
+<div class="container">
+
+    <!-- ================= HEADER ================= -->
+    <div class="header">
+        <a href="admin-dashboard.html" class="back-btn">←</a>
+
+        <div>
+            <h2 class="title">Mantenimiento del Sistema</h2>
+            <p class="subtitle">Gestión de pacientes inactivos</p>
+        </div>
+    </div>
+
+    <!-- ================= WARNING ================= -->
+    <div class="warning-box">
+        <span class="warning-icon">⚠</span>
+        <p><strong>Advertencia:</strong> La eliminación definitiva no puede deshacerse.  
+        Se recomienda archivar pacientes antes de eliminarlos permanentemente.</p>
+    </div>
+
+    <!-- ================= STATS ================= -->
+    <div class="stats-grid">
+
+        <div class="stat-card teal">
+            <p class="stat-label">Total de Pacientes</p>
+            <p class="stat-value">0</p>
+        </div>
+
+        <div class="stat-card amber">
+            <p class="stat-label">Pacientes Inactivos</p>
+            <p class="stat-value">0</p>
+            <p class="stat-hint">Sin consultas en 24+ meses</p>
+        </div>
+
+        <div class="stat-card blue">
+            <p class="stat-label">Seleccionados</p>
+            <p class="stat-value">0</p>
+        </div>
+
+    </div>
+
+    <!-- ================= QUICK ACTIONS ================= -->
+    <div class="actions-box">
+        <div class="actions-header">
+            <h3 class="actions-title">Acciones Rápidas</h3>
+
+            <div class="actions-buttons">
+                <button class="btn-select">Seleccionar todos</button>
+                <button class="btn-deselect">Deseleccionar todos</button>
+            </div>
+        </div>
+
+        <div class="actions-main">
+            <button class="btn-archive">Archivar Automáticamente (0)</button>
+            <button class="btn-delete">Eliminar Definitivamente (0)</button>
+        </div>
+    </div>
+
+    <!-- ================= PATIENT LIST ================= -->
+    <div class="list-box">
+
+        <div class="list-header">
+            <h3 class="actions-title">Pacientes Inactivos (24+ meses sin consultas)</h3>
+            <p class="subtitle">0 pacientes encontrados</p>
+        </div>
+
+        <div class="list-empty">
+            <div class="empty-icon">✔</div>
+            <p class="empty-title">¡Sistema limpio!</p>
+            <p class="empty-text">No hay pacientes inactivos en este momento</p>
+        </div>
+
+        <!--
+        EJEMPLO QUE SE ACTIVARÁ AL TENER DATOS EN BACK-END:
+
+        <div class="patient-item">
+            <input type="checkbox" class="patient-checkbox" />
+
+            <div class="patient-data">
+                <p class="patient-name">Nombre del paciente</p>
+                <p class="patient-info">Especie - Raza (Edad años)</p>
+                <p class="patient-info">Dueño: Nombre</p>
+                <p class="patient-info">Registrado por: Médico</p>
+            </div>
+
+            <div class="patient-consult">
+                <p class="consult-label">Última consulta:</p>
+                <p class="consult-date">10/02/2022</p>
+                <p class="consult-months">Hace 26 meses</p>
+            </div>
+        </div>
+        -->
+
+    </div>
+
+</div>
+
+</body>
+</html>

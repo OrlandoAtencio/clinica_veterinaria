@@ -1,0 +1,142 @@
+/* ===========================
+   ESTILOS GENERALES
+=========================== */
+body.login-background {
+    margin: 0;
+    padding: 0;
+    background: #f3fdfd;
+    font-family: "Segoe UI", sans-serif;
+    color: #0f3f3f;
+}
+
+/* Contenedor principal */
+.container {
+    max-width: 420px;
+    margin: 40px auto;
+    padding: 20px;
+    text-align: center;
+}
+
+/* ===========================
+   LOGO E IDENTIDAD
+=========================== */
+
+/* ===========================
+   LOGO E IDENTIDAD
+=========================== */
+
+/* Contenedor del cuadrado detrás del logo */
+.login-logo {
+    width: 100px;          /* Antes era 100px+ — ahora más pequeño */
+    height: 100px;
+    margin: 0 auto 15px auto;
+    background: linear-gradient(to bottom right, #0d9488, #06b6d4);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
+}
+
+/* El SVG dentro del logo */
+.logo-img {
+    width: 95%;        /* Controla tamaño del SVG */
+    height: auto;
+    filter: brightness(0) invert(1); 
+    /* ↑ Esto vuelve el logo completamente BLANCO */
+}
+
+/* Títulos */
+.title {
+    font-size: 26px;
+    margin: 10px 0 2px;
+    color: #0d9488;
+}
+
+.subtitle {
+    font-size: 20px;
+    margin-top: 0;
+    color: #0f766e;
+}
+
+.description {
+    font-size: 14px;
+    margin-top: 4px;
+    color: #0f3f3f;
+}
+
+/* ===========================
+   TARJETA DE LOGIN
+=========================== */
+.login-card {
+    background: white;
+    margin-top: 25px;
+    padding: 28px;
+    border-radius: 14px;
+    border: 2px solid #a7f3d0;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+}
+
+.card-title {
+    margin-top: 0;
+    font-size: 20px;
+    color: #0d9488;
+}
+
+/* ===========================
+   FORMULARIO
+=========================== */
+label {
+    display: block;
+    text-align: left;
+    margin-top: 14px;
+    font-size: 14px;
+    color: #0f3f3f;
+}
+
+.login-input {
+    width: 100%;
+    padding: 12px;
+    margin-top: 6px;
+    border: 2px solid #ccfbf1;
+    border-radius: 8px;
+    font-size: 15px;
+    background: #f7ffff;
+    transition: 0.25s;
+}
+
+.login-input:focus {
+    outline: none;
+    border-color: #0d9488;
+    box-shadow: 0 0 4px #0d9488;
+}
+
+/* ===========================
+   BOTÓN LOGIN
+=========================== */
+.login-btn {
+    width: 100%;
+    padding: 14px;
+    margin-top: 22px;
+    background: linear-gradient(to right, #0d9488, #0891b2);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.25s;
+}
+
+.login-btn:hover {
+    transform: scale(1.02);
+    background: linear-gradient(to right, #0d9488, #06b6d4);
+}
+
+/* ===========================
+   PIE DE PÁGINA
+=========================== */
+.footer-note {
+    margin-top: 18px;
+    font-size: 13px;
+    color: #0f766e;
+}

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Panel del Médico</title>
+
+    <!-- Ruta correcta al CSS -->
+    <link rel="stylesheet" href="../css/ddoctor-dashboard.css" />
+
+    <!-- Comentarios para Back-End:
+         - Insertar dinámicamente: doctorName, doctorId
+         - Ejemplo Flask:
+           <body data-doctor-id="{{ doctor.id }}">
+    -->
+</head>
+
+<body data-doctor-id="doctor-a">
+
+    <!-- Barra superior con botón de cerrar sesión -->
+    <nav class="topbar">
+        <h2>Panel del Médico</h2>
+
+        <a href="login.html" class="logout-btn">
+            Cerrar Sesión
+        </a>
+    </nav>
+
+    <!-- Sección bienvenida -->
+    <header class="header-welcome">
+        <p class="sub">
+            Bienvenido, <span id="doctorName">Médico A</span>
+        </p>
+        <p class="desc">Gestiona tus pacientes y consultas desde este panel.</p>
+    </header>
+
+    <!-- Tarjetas de estadísticas -->
+    <section class="stats-grid">
+
+        <!-- Mis Consultas -->
+        <div class="card stat-card">
+            <div class="icon-box teal">
+                <img src="../icons/calendar.svg" alt="consultas" />
+            </div>
+            <p class="label">Mis Consultas</p>
+            <p id="myConsultations" class="number">0</p>
+        </div>
+
+        <!-- Mis Pacientes -->
+        <div class="card stat-card">
+            <div class="icon-box cyan">
+                <img src="../icons/users.svg" alt="pacientes" />
+            </div>
+            <p class="label">Pacientes Registrados</p>
+            <p id="myPatients" class="number">0</p>
+        </div>
+
+        <!-- Consultas este mes -->
+        <div class="card stat-card">
+            <div class="icon-box blue">
+                <img src="../icons/file.svg" alt="mes" />
+            </div>
+            <p class="label">Este Mes</p>
+            <p id="myConsultationsMonth" class="number">0</p>
+        </div>
+
+    </section>
+
+    <!-- Acciones rápidas -->
+    <section class="actions-grid">
+
+        <button class="action-btn" data-view="register-consultation">
+            <div class="icon-box teal-cyan">
+                <img src="../icons/plus.svg" alt="nueva consulta" />
+            </div>
+            <p class="title">Registrar Nueva Consulta</p>
+            <p class="desc-small">Crear registro médico</p>
+        </button>
+
+        <button class="action-btn" data-view="register-patient">
+            <div class="icon-box cyan-blue">
+                <img src="../icons/users.svg" alt="registrar paciente" />
+            </div>
+            <p class="title">Registrar Nuevo Paciente</p>
+            <p class="desc-small">Añadir paciente</p>
+        </button>
+
+        <button class="action-btn" data-view="patient-history">
+            <div class="icon-box blue-indigo">
+                <img src="../icons/file.svg" alt="historial" />
+            </div>
+            <p class="title">Ver Mi Historial</p>
+            <p class="desc-small">Mis consultas y pacientes</p>
+        </button>
+
+    </section>
+
+    <!-- Consultas recientes -->
+    <section class="card recent-box">
+        <h3>Consultas Recientes</h3>
+
+        <div id="recentConsultations" class="recent-list">
+
+            <!-- Comentario Back-End:
+                 Aquí se agregan consultas recientes dinámicamente
+            -->
+
+            <p class="empty">No hay consultas registradas aún</p>
+        </div>
+    </section>
+
+</body>
+</html>

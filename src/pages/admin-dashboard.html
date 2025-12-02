@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Panel de Administración</title>
+    <link rel="stylesheet" href="../css/admin-dashboard.css">
+</head>
+
+<body>
+<div class="container">
+
+    <!-- ==========================
+         ENCABEZADO / LOGOUT
+    ============================ -->
+    <header class="topbar">
+        <h2>Panel de Administración</h2>
+        <button id="logoutBtn" class="logout-btn">Cerrar sesión</button>
+    </header>
+
+    <!-- ==========================
+         TARJETA DE BIENVENIDA
+    ============================ -->
+    <section class="card welcome-card">
+        <p>
+            Bienvenido, <span id="adminName">Administrador</span> — Vista general del sistema
+        </p>
+    </section>
+
+    <!-- ==========================
+         TARJETAS DE ESTADÍSTICAS
+    ============================ -->
+    <section class="stats-grid">
+
+        <!-- Pacientes -->
+        <div class="stat-card teal">
+            <div class="stat-header">
+                <div class="icon-box">
+                    <!-- ICONO PACIENTES -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-width="2" d="M17 20v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2" />
+                        <circle cx="9" cy="7" r="4" stroke-width="2" />
+                        <path stroke-width="2" d="M23 20v-2a4 4 0 00-3-3.87" />
+                        <path stroke-width="2" d="M16 3.13a4 4 0 010 7.75" />
+                    </svg>
+                </div>
+            </div>
+            <p class="label">Pacientes Activos</p>
+            <p class="value" id="activePatients">0</p>
+        </div>
+
+        <!-- Consultas -->
+        <div class="stat-card cyan">
+            <div class="stat-header">
+                <div class="icon-box">
+                    <!-- ICONO CONSULTAS -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-width="2" d="M3 8h18M5 4h2m10 0h2M6 2v4m12-4v4M4 8v12h16V8z" />
+                    </svg>
+                </div>
+            </div>
+            <p class="label">Consultas Este Mes</p>
+            <p class="value" id="consultationsMonth">0</p>
+        </div>
+
+        <!-- Médicos -->
+        <div class="stat-card blue">
+            <div class="stat-header">
+                <div class="icon-box">
+                    <!-- ICONO MEDICOS -->
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" class="icon" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-width="2" d="M6 3v6a6 6 0 0012 0V3" />
+                        <circle cx="18" cy="18" r="3" stroke-width="2" />
+                    </svg>
+                </div>
+            </div>
+            <p class="label">Médicos Activos</p>
+            <p class="value" id="doctorsCount">0</p>
+        </div>
+
+    </section>
+
+    <!-- ==========================
+         RENDIMIENTO DE MÉDICOS
+    ============================ -->
+    <section class="card doctor-performance">
+        <h3>Rendimiento de Médicos</h3>
+        <div id="doctorList"></div>
+    </section>
+
+    <!-- ==========================
+         BOTONES DE NAVEGACIÓN
+    ============================ -->
+    <section class="buttons-grid">
+
+        <a href="register-patient.html" class="action-btn btn-patients">
+            <p>Gestionar Pacientes</p>
+            <span>Registrar nuevos pacientes</span>
+        </a>
+
+        <a href="register-consultation.html" class="action-btn btn-consult">
+            <p>Gestionar Consultas</p>
+            <span>Registrar consultas médicas</span>
+        </a>
+
+        <a href="historial-pacientes.html" class="action-btn btn-history">
+            <p>Historial de Pacientes</p>
+            <span>Ver registros completos</span>
+        </a>
+
+        <a href="system-maintenance.html" class="action-btn btn-maintenance">
+            <p>Mantenimiento del Sistema</p>
+            <span>Archivar pacientes inactivos</span>
+        </a>
+
+    </section>
+
+</div>
+
+<!-- ==========================
+     SCRIPT
+============================ -->
+<script>
+// --- CERRAR SESIÓN ---
+document.getElementById("logoutBtn").addEventListener("click", function() {
+    window.location.href = "../pages/llogin.html";  // RUTA CORRECTA
+});
+
+// --- LISTA DE MÉDICOS (EJEMPLO) ---
+const exampleDoctors = [
+    { name: "Dr. Carlos", consultations: 14 },
+    { name: "Dr. Allen", consultations: 9 },
+    { name: "Dra. Mariam", consultations: 22 }
+];
+
+const list = document.getElementById("doctorList");
+
+exampleDoctors.forEach(doc => {
+    const row = document.createElement("div");
+    row.className = "doctor-row";
+
+    row.innerHTML = `
+        <div class="doctor-info">
+            <div class="doctor-icon">👨‍⚕️</div>
+            <div>
+                <p class="doctor-name">${doc.name}</p>
+                <p class="doctor-role">Personal médico</p>
+            </div>
+        </div>
+        <div class="doctor-stats">
+            <p class="doctor-number">${doc.consultations}</p>
+            <p class="doctor-label">consultas</p>
+        </div>
+    `;
+
+    list.appendChild(row);
+});
+</script>
+
+</body>
+</html>

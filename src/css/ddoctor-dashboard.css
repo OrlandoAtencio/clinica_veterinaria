@@ -1,0 +1,205 @@
+/* ===========================
+   ESTILOS GENERALES
+=========================== */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: "Segoe UI", sans-serif;
+    background: #f3fdfd;
+    color: #0f3f3f;
+}
+
+/* ===========================
+   TOP BAR
+=========================== */
+.topbar {
+    background: linear-gradient(to right, #0d9488, #0891b2);
+    padding: 15px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+}
+
+.topbar h2 {
+    margin: 0;
+    font-size: 22px;
+}
+
+.logout-btn {
+    background: #064e3b;
+    padding: 10px 18px;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: 0.3s;
+}
+
+.logout-btn:hover {
+    background: #052e20;
+}
+
+/* ===========================
+   HEADER BIENVENIDA
+=========================== */
+.header-welcome {
+    padding: 25px 20px;
+    text-align: center;
+}
+
+.header-welcome .sub {
+    font-size: 20px;
+    margin-bottom: 5px;
+    color: #0d9488;
+}
+
+.header-welcome .desc {
+    color: #0f766e;
+}
+
+/* ===========================
+   TARJETAS DE ESTADÍSTICAS
+=========================== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 20px;
+    padding: 0 20px;
+    margin-bottom: 25px;
+}
+
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    border: 2px solid #ccfbf1;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+}
+
+.stat-card {
+    text-align: center;
+}
+
+/* ICONOS */
+.icon-box {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 15px auto;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-box img {
+    width: 32px;
+    height: 32px;
+    filter: brightness(0) invert(1); /* iconos blancos */
+}
+
+/* ===== Colores corregidos ===== */
+.teal { 
+    background: #0d9488;
+}
+
+.cyan { 
+    background: #06b6d4;
+}
+
+.blue { 
+    background: #3b82f6;
+}
+
+/* Texto */
+.label {
+    font-size: 15px;
+    color: #0d9488;
+}
+
+.number {
+    font-size: 30px;
+    font-weight: bold;
+    margin-top: 5px;
+    color: #0f3f3f;
+}
+
+/* ===========================
+   ACCIONES RÁPIDAS
+=========================== */
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+    padding: 0 20px;
+    margin-bottom: 35px;
+}
+
+.action-btn {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    border: 2px solid #a7f3d0;
+    text-align: left;
+    cursor: pointer;
+    transition: 0.3s;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+}
+
+.action-btn:hover {
+    transform: scale(1.02);
+    background: #e6fffb;
+}
+
+.action-btn .icon-box {
+    margin: 0 0 12px 0;
+}
+
+.title {
+    font-size: 18px;
+    margin: 5px 0;
+    color: #0f3f3f;
+}
+
+.desc-small {
+    font-size: 13px;
+    color: #0d9488;
+}
+
+/* Gradientes iconos */
+.teal-cyan { 
+    background: linear-gradient(to bottom right, #14b8a6, #06b6d4);
+}
+
+.cyan-blue { 
+    background: linear-gradient(to bottom right, #06b6d4, #3b82f6);
+}
+
+.blue-indigo { 
+    background: linear-gradient(to bottom right, #3b82f6, #4338ca);
+}
+
+/* ===========================
+   CONSULTAS RECIENTES
+=========================== */
+.recent-box {
+    margin: 0 20px 30px 20px;
+    background: white;
+    padding: 22px;
+    border-radius: 16px;
+    border: 2px solid #ccfbf1;
+}
+
+.recent-box h3 {
+    margin-top: 0;
+    color: #0f3f3f;
+}
+
+.recent-list {
+    margin-top: 15px;
+}
+
+.empty {
+    color: #0d9488;
+    font-style: italic;
+}
