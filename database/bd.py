@@ -1,4 +1,14 @@
 import sqlite3
+import hashlib
+
+# ------------ FUNCIONES DE HASH ------------
+def hash_text(text: str) -> str:
+    return hashlib.sha256(text.encode()).hexdigest()
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+# -------------------------------------------
 
 # Conectar o crear la base de datos SQLite
 conn = sqlite3.connect('clinica_vet.sqlite')
@@ -87,8 +97,22 @@ COMMIT;
 # Activar llaves foráneas
 cursor.execute("PRAGMA foreign_keys = ON;")
 
-# Cerrar conexión
-conn.commit()
-conn.close()
+# ----------- ACTUALIZAR HASHES EN USERS ------------
 
-print("Base de datos SQLite 'clinica_vet.sqlite' creada con éxito.")
+# Obtener el usuario insertado
+cursor.execute("SELECT id, correo, password FROM users")
+rows = cursor.fetchall()
+
+for user_id, correo, password in rows:
+    hashed_email = hash_text(correo)
+    hashed_password = hash_password(password)
+
+    cursor.execute("""
+        UPDATE users
+        SET correo = ?, password = ?, password_hash = ?
+        WHERE id = ?
+    """, (hashed_email, hashed_password, hashed_password, user_id))
+
+# ----------------------------------------------------
+
+# Cerrar co
