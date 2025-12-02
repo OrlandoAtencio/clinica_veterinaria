@@ -7,112 +7,118 @@ def hash_text(text: str) -> str:
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
-
 # -------------------------------------------
 
-# Conectar o crear la base de datos SQLite
-conn = sqlite3.connect('clinica_vet.sqlite')
-cursor = conn.cursor()
 
-# Desactivar temporalmente las llaves foráneas
-cursor.execute("PRAGMA foreign_keys = OFF;")
+# ------------ FUNCIÓN PRINCIPAL BD ------------
+def crear_base_datos():
+    conn = sqlite3.connect('clinica_vet.sqlite')
+    cursor = conn.cursor()
 
-# Crear tablas
-cursor.executescript("""
-BEGIN TRANSACTION;
+    # Desactivar temporalmente las llaves foráneas
+    cursor.execute("PRAGMA foreign_keys = OFF;")
 
--- Tabla consultas
-CREATE TABLE IF NOT EXISTS consultas (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  paciente_id INTEGER NOT NULL,
-  fecha DATE NOT NULL,
-  motivo TEXT NOT NULL,
-  diagnostico TEXT,
-  tratamiento TEXT,
-  creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+    # Crear tablas y datos EXACTAMENTE como enviaste
+    cursor.executescript("""
+    BEGIN TRANSACTION;
 
-INSERT INTO consultas (id, paciente_id, fecha, motivo, diagnostico, tratamiento, creado_en) VALUES
-(1, 23, '2025-12-11', 'enfermo', 'falta de apetito', 'comer proteinas', '2025-12-01 22:06:47');
+    -- Tabla consultas
+    CREATE TABLE IF NOT EXISTS consultas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      paciente_id INTEGER NOT NULL,
+      fecha DATE NOT NULL,
+      motivo TEXT NOT NULL,
+      diagnostico TEXT,
+      tratamiento TEXT,
+      creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
 
--- Tabla consultations
-CREATE TABLE IF NOT EXISTS consultations (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  patient_id INTEGER NOT NULL,
-  date DATE NOT NULL,
-  diagnosis TEXT NOT NULL,
-  details TEXT NOT NULL,
-  doctor_id INTEGER NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY(patient_id) REFERENCES patients(id),
-  FOREIGN KEY(doctor_id) REFERENCES users(id)
-);
+    INSERT INTO consultas (id, paciente_id, fecha, motivo, diagnostico, tratamiento, creado_en) VALUES
+    (1, 23, '2025-12-11', 'enfermo', 'falta de apetito', 'comer proteinas', '2025-12-01 22:06:47');
 
--- Tabla pacientes
-CREATE TABLE IF NOT EXISTS pacientes (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  nombre TEXT NOT NULL,
-  especie TEXT NOT NULL,
-  raza TEXT,
-  edad INTEGER,
-  dueño TEXT NOT NULL,
-  telefono TEXT,
-  creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
-  archivado INTEGER DEFAULT 0
-);
+    -- Tabla consultations
+    CREATE TABLE IF NOT EXISTS consultations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patient_id INTEGER NOT NULL,
+      date DATE NOT NULL,
+      diagnosis TEXT NOT NULL,
+      details TEXT NOT NULL,
+      doctor_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(patient_id) REFERENCES patients(id),
+      FOREIGN KEY(doctor_id) REFERENCES users(id)
+    );
 
-INSERT INTO pacientes (id, nombre, especie, raza, edad, dueño, telefono, creado_en, archivado) VALUES
-(1, 'Flash', 'Perro', 'Pitbull', 2, 'Mizael', '6505-2960', '2025-12-01 22:10:02', 0);
+    -- Tabla pacientes
+    CREATE TABLE IF NOT EXISTS pacientes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nombre TEXT NOT NULL,
+      especie TEXT NOT NULL,
+      raza TEXT,
+      edad INTEGER,
+      dueño TEXT NOT NULL,
+      telefono TEXT,
+      creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+      archivado INTEGER DEFAULT 0
+    );
 
--- Tabla patients
-CREATE TABLE IF NOT EXISTS patients (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  owner_name TEXT NOT NULL,
-  patient_name TEXT NOT NULL,
-  species TEXT NOT NULL,
-  breed TEXT NOT NULL,
-  age INTEGER NOT NULL,
-  created_by INTEGER,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY(created_by) REFERENCES users(id)
-);
+    INSERT INTO pacientes (id, nombre, especie, raza, edad, dueño, telefono, creado_en, archivado) VALUES
+    (1, 'Flash', 'Perro', 'Pitbull', 2, 'Mizael', '6505-2960', '2025-12-01 22:10:02', 0);
 
--- Tabla users
-CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  nombre TEXT NOT NULL,
-  correo TEXT NOT NULL UNIQUE,
-  password TEXT NOT NULL,
-  password_hash TEXT,
-  rol TEXT DEFAULT 'veterinario',
-  creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+    -- Tabla patients
+    CREATE TABLE IF NOT EXISTS patients (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner_name TEXT NOT NULL,
+      patient_name TEXT NOT NULL,
+      species TEXT NOT NULL,
+      breed TEXT NOT NULL,
+      age INTEGER NOT NULL,
+      created_by INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(created_by) REFERENCES users(id)
+    );
 
-INSERT INTO users (id, nombre, correo, password, rol, creado_en) VALUES
-(1, 'Administrador', 'admin@vetcare.com', '123456', 'admin', '2025-12-01 21:21:59');
+    -- Tabla users
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nombre TEXT NOT NULL,
+      correo TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      password_hash TEXT,
+      rol TEXT DEFAULT 'veterinario',
+      creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
 
-COMMIT;
-""")
+    INSERT INTO users (id, nombre, correo, password, rol, creado_en) VALUES
+    (1, 'Administrador', 'admin@vetcare.com', '123456', 'admin', '2025-12-01 21:21:59');
 
-# Activar llaves foráneas
-cursor.execute("PRAGMA foreign_keys = ON;")
+    COMMIT;
+    """)
 
-# ----------- ACTUALIZAR HASHES EN USERS ------------
+    # Activar llaves foráneas
+    cursor.execute("PRAGMA foreign_keys = ON;")
 
-# Obtener el usuario insertado
-cursor.execute("SELECT id, correo, password FROM users")
-rows = cursor.fetchall()
+    # ----------- ACTUALIZAR HASHES EN USERS ------------
+    cursor.execute("SELECT id, correo, password FROM users")
+    rows = cursor.fetchall()
 
-for user_id, correo, password in rows:
-    hashed_email = hash_text(correo)
-    hashed_password = hash_password(password)
+    for user_id, correo, password in rows:
+        hashed_email = hash_text(correo)
+        hashed_password = hash_password(password)
 
-    cursor.execute("""
-        UPDATE users
-        SET correo = ?, password = ?, password_hash = ?
-        WHERE id = ?
-    """, (hashed_email, hashed_password, hashed_password, user_id))
+        cursor.execute("""
+            UPDATE users
+            SET correo = ?, password = ?, password_hash = ?
+            WHERE id = ?
+        """, (hashed_email, hashed_password, hashed_password, user_id))
 
-# ----------------------------------------------------
+    conn.commit()
+    conn.close()
 
-# Cerrar co
+    print("Base de datos SQLite 'clinica_vet.sqlite' creada con éxito (con funciones y hashes).")
+# ------------------------------------------------------
+
+
+# Ejecutar automáticamente al correr el archivo
+if __name__ == "__main__":
+    crear_base_datos()
