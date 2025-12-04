@@ -15,7 +15,7 @@
     ============================ -->
     <header class="topbar">
         <h2>Panel de Administración</h2>
-        <button id="logoutBtn" class="logout-btn">Cerrar sesión</button>
+        <a href="{{ url_for('logout') }}" class="logout-btn">Cerrar sesión</a>
     </header>
 
     <!-- ==========================
@@ -93,22 +93,22 @@
     ============================ -->
     <section class="buttons-grid">
 
-        <a href="register-patient.html" class="action-btn btn-patients">
+        <a href="{{ url_for('register_patient') }}" class="action-btn btn-patients">
             <p>Gestionar Pacientes</p>
             <span>Registrar nuevos pacientes</span>
         </a>
 
-        <a href="register-consultation.html" class="action-btn btn-consult">
+        <a href="{{ url_for('register_consultation') }}" class="action-btn btn-consult">
             <p>Gestionar Consultas</p>
             <span>Registrar consultas médicas</span>
         </a>
 
-        <a href="historial-pacientes.html" class="action-btn btn-history">
+        <a href="{{ url_for('historial_pacientes') }}" class="action-btn btn-history">  
             <p>Historial de Pacientes</p>
             <span>Ver registros completos</span>
         </a>
 
-        <a href="system-maintenance.html" class="action-btn btn-maintenance">
+        <a href="{{ url_for('system_maintenance') }}" class="action-btn btn-maintenance">
             <p>Mantenimiento del Sistema</p>
             <span>Archivar pacientes inactivos</span>
         </a>
@@ -123,7 +123,7 @@
 <script>
 // --- CERRAR SESIÓN ---
 document.getElementById("logoutBtn").addEventListener("click", function() {
-    window.location.href = "../pages/llogin.html";  // RUTA CORRECTA
+    window.location.href = "../templates/login.html";  // RUTA CORRECTA
 });
 
 // --- LISTA DE MÉDICOS (EJEMPLO) ---

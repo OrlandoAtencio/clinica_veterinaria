@@ -11,7 +11,7 @@
     <!-- TOP BAR -->
     <div class="topbar">
         <h2>Clínica Veterinaria Oregón VetCare</h2>
-        <a class="logout-btn" href="llogin.html">Cerrar sesión</a>
+        <a class="logout-btn" href="{{ url_for('logout') }}">Cerrar sesión</a>
     </div>
 
     <!-- Contenedor -->
@@ -19,12 +19,24 @@
 
         <!-- Flecha + Título -->
         <div class="header-area">
-            <button class="back-btn" onclick="location.href='admin-dashboard.html'">←</button>
-
-            <div>
-                <h1 class="title">Historial de Pacientes</h1>
-                <p class="subtitle">Vista completa de todos los pacientes registrados</p>
-            </div>
+        <a href="{{ dashboard_url }}" class="back-btn">←</a>
+    <div>
+        <h1 class="title">
+            {% if rol == 'admin' %}
+                Historial Completo de Pacientes
+            {% else %}
+                Mis Pacientes
+            {% endif %}
+        </h1>
+        <p class="subtitle">
+            {% if rol == 'admin' %}
+                Vista global de todos los pacientes registrados
+            {% else %}
+                Pacientes que has atendido
+            {% endif %}
+        </p>
+    </div>
+        </div>
         </div>
 
         <!-- Alerta -->

@@ -13,11 +13,12 @@
 
     <!-- ================= HEADER ================= -->
     <div class="header">
-        <a href="admin-dashboard.html" class="back-btn">←</a>
+        <a href="{{ url_for('admin_dashboard') }}" class="back-btn"></ahref>>←</a>
 
         <div>
             <h2 class="title">Mantenimiento del Sistema</h2>
             <p class="subtitle">Gestión de pacientes inactivos</p>
+            <p><small>Administrador: {{ adminName }}</small></p>
         </div>
     </div>
 
@@ -33,12 +34,12 @@
 
         <div class="stat-card teal">
             <p class="stat-label">Total de Pacientes</p>
-            <p class="stat-value">0</p>
+            <p class="stat-value">{{ total_pacientes }}</p>
         </div>
 
         <div class="stat-card amber">
             <p class="stat-label">Pacientes Inactivos</p>
-            <p class="stat-value">0</p>
+            <p class="stat-value">{{ inactivos_count }}</p>
             <p class="stat-hint">Sin consultas en 24+ meses</p>
         </div>
 
@@ -61,8 +62,12 @@
         </div>
 
         <div class="actions-main">
-            <button class="btn-archive">Archivar Automáticamente (0)</button>
-            <button class="btn-delete">Eliminar Definitivamente (0)</button>
+            <button class="btn-archive" onclick="archiveSelected()">
+                Archivar Automáticamente (<span id="selectedCount">0</span>)
+            </button>
+            <button class="btn-delete" onclick="deleteSelected()">
+                Eliminar Definitivamente (<span id="deleteCount">0</span>)
+            </button>
         </div>
     </div>
 
@@ -71,39 +76,185 @@
 
         <div class="list-header">
             <h3 class="actions-title">Pacientes Inactivos (24+ meses sin consultas)</h3>
-            <p class="subtitle">0 pacientes encontrados</p>
+            <p class="subtitle">{{ inactivos_count }} pacientes encontrados</p>
         </div>
 
-        <div class="list-empty">
-            <div class="empty-icon">✔</div>
-            <p class="empty-title">¡Sistema limpio!</p>
-            <p class="empty-text">No hay pacientes inactivos en este momento</p>
-        </div>
+        {% if pacientes_inactivos %}
+            {% for paciente in pacientes_inactivos %}
+            <div class="patient-item">
+                <input type="checkbox" 
+                       class="patient-checkbox" 
+                       value="{{ paciente.id }}"
+                       data-paciente-id="{{ paciente.id }}"
+                       onchange="updateSelectionCount()">
 
-        <!--
-        EJEMPLO QUE SE ACTIVARÁ AL TENER DATOS EN BACK-END:
+                <div class="patient-data">
+                    <p class="patient-name">{{ paciente.nombre }}</p>
+                    <p class="patient-info">{{ paciente.especie }} - {{ paciente.raza or 'Sin raza' }} ({{ paciente.edad or 'N/A' }} años)</p>
+                    <p class="patient-info">Dueño: {{ paciente.nombre_dueno }}</p>
+                    <p class="patient-info">Registrado por: {{ paciente.doctor_nombre }}</p>
+                </div>
 
-        <div class="patient-item">
-            <input type="checkbox" class="patient-checkbox" />
-
-            <div class="patient-data">
-                <p class="patient-name">Nombre del paciente</p>
-                <p class="patient-info">Especie - Raza (Edad años)</p>
-                <p class="patient-info">Dueño: Nombre</p>
-                <p class="patient-info">Registrado por: Médico</p>
+                <div class="patient-consult">
+                    <p class="consult-label">Última consulta:</p>
+                    <p class="consult-date">
+                        {% if paciente.ultima_consulta %}
+                            {{ paciente.ultima_consulta[:10] }}
+                        {% else %}
+                            Nunca
+                        {% endif %}
+                    </p>
+                    <p class="consult-months">
+                        {% if paciente.meses_inactivo and paciente.meses_inactivo != 'N/A' %}
+                            Hace {{ paciente.meses_inactivo|round|int }} meses
+                        {% else %}
+                            Sin consultas registradas
+                        {% endif %}
+                    </p>
+                </div>
             </div>
-
-            <div class="patient-consult">
-                <p class="consult-label">Última consulta:</p>
-                <p class="consult-date">10/02/2022</p>
-                <p class="consult-months">Hace 26 meses</p>
+            {% endfor %}
+        {% else %}
+            <div class="list-empty">
+                <div class="empty-icon">✔</div>
+                <p class="empty-title">¡Sistema limpio!</p>
+                <p class="empty-text">No hay pacientes inactivos en este momento</p>
             </div>
-        </div>
-        -->
-
+        {% endif %}
+        
     </div>
 
 </div>
+<script>
+let selectedPatients = new Set();
 
+function selectAll() {
+    const checkboxes = document.querySelectorAll('.patient-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+        selectedPatients.add(checkbox.dataset.pacienteId);
+    });
+    updateSelectionCount();
+}
+
+function deselectAll() {
+    const checkboxes = document.querySelectorAll('.patient-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+        selectedPatients.delete(checkbox.dataset.pacienteId);
+    });
+    updateSelectionCount();
+}
+
+function updateSelectionCount() {
+    selectedPatients.clear();
+    document.querySelectorAll('.patient-checkbox:checked').forEach(checkbox => {
+        selectedPatients.add(checkbox.dataset.pacienteId);
+    });
+    
+    document.getElementById('selectedCount').textContent = selectedPatients.size;
+    document.getElementById('deleteCount').textContent = selectedPatients.size;
+    
+    // Actualizar tarjeta de seleccionados
+    document.querySelector('.stat-card.blue .stat-value').textContent = selectedPatients.size;
+}
+
+function archiveSelected() {
+    if (selectedPatients.size === 0) {
+        alert('Por favor, selecciona al menos un paciente para archivar.');
+        return;
+    }
+    
+    if (confirm(`¿Estás seguro de querer archivar ${selectedPatients.size} paciente(s)?`)) {
+        // Mostrar indicador de carga
+        const archiveBtn = document.querySelector('.btn-archive');
+        const originalText = archiveBtn.innerHTML;
+        archiveBtn.innerHTML = '⌛ Archivando...';
+        archiveBtn.disabled = true;
+
+        // Llamar a la API
+        fetch('/api/archive-patients', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                patient_ids: Array.from(selectedPatients)
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                // Recargar la página para mostrar cambios
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+                archiveBtn.innerHTML = originalText;
+                archiveBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al comunicarse con el servidor');
+            archiveBtn.innerHTML = originalText;
+            archiveBtn.disabled = false;
+        });
+    }
+}
+
+function deleteSelected() {
+    if (selectedPatients.size === 0) {
+        alert('Por favor, selecciona al menos un paciente para eliminar.');
+        return;
+    }
+    
+    const confirmation = confirm(
+        `¡ADVERTENCIA!\n\nEstás a punto de eliminar permanentemente ${selectedPatients.size} paciente(s).\n\n` +
+        'Esta acción NO se puede deshacer.\n\n' +
+        '¿Estás absolutamente seguro?'
+    );
+    
+    if (confirmation) {
+        // Mostrar indicador de carga
+        const deleteBtn = document.querySelector('.btn-delete');
+        const originalText = deleteBtn.innerHTML;
+        deleteBtn.innerHTML = '⌛ Eliminando...';
+        deleteBtn.disabled = true;
+        
+        // Llamar a la API
+        fetch('/api/delete-patients', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                patient_ids: Array.from(selectedPatients)
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                // Recargar la página para mostrar cambios
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+                deleteBtn.innerHTML = originalText;
+                deleteBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al comunicarse con el servidor');
+            deleteBtn.innerHTML = originalText;
+            deleteBtn.disabled = false;
+        });
+    }
+}
+
+// Inicializar contador
+updateSelectionCount();
+</script>
 </body>
 </html>

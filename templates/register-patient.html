@@ -18,7 +18,7 @@
 
   <!-- Header -->
   <div class="header">
-    <button class="back-btn" onclick="goBack()">
+      <a href="{{ url_for('admin_dashboard') if session.get('rol') == 'admin' else url_for('doctor_dashboard') }}" class="back-btn">←</a>
       <i data-lucide="arrow-left"></i>
     </button>
 
@@ -35,7 +35,7 @@
 
   <!-- Form -->
   <div class="form-card">
-    <form id="patientForm">
+    <form id="patientForm" method="POST" action="{{ url_for('register_patient') }}">
 
       <!-- Owner Info -->
       <div class="section">
@@ -98,7 +98,7 @@
 
       <!-- Buttons -->
       <div class="buttons">
-        <button type="button" class="cancel-btn" onclick="goBack()">Cancelar</button>
+        <a href="{{ url_for('admin_dashboard') if session.get('rol') == 'admin' else url_for('doctor_dashboard') }}" class="cancel-btn">Cancelar</a>
 
         <button type="submit" class="save-btn">
           <i data-lucide="save"></i>

@@ -1,800 +1,693 @@
-# app.py - SISTEMA DE GESTIÓN VETERINARIA
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
-from functools import wraps
-import sqlite3
-from datetime import datetime, timedelta
-import hashlib
-import secrets
-import time
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+from database import get_db_connection, verify_password, init_db, obtener_usuario_por_username 
 import os
 
-# Importar funciones de tu database.py existente
-from database import (
-    init_db, 
-    get_db_connection, 
-    hash_password, 
-    verify_password,
-    log_evento_seguridad,
-    obtener_usuario_por_username,
-    obtener_pacientes,
-    obtener_consultas_pendientes
-)
-
 app = Flask(__name__)
-app.secret_key = secrets.token_hex(32)
+app.secret_key = 'clave_secreta_veterinaria_2024'  # Clave secreta para sesiones
 
-# Configuración
-DB_NAME = 'clinic.db'
-MAX_INTENTOS_LOGIN = 5
-TIEMPO_BLOQUEO_MINUTOS = 30
+# Inicializar base de datos si no existe
+if not os.path.exists('clinic.db'):
+    print("Inicializando base de datos...")
+    init_db()
 
-# Diccionarios para seguridad
-intentos_ip = {}
-
-# ==================== FUNCIONES DE BASE DE DATOS ====================
-
-def init_db():
-    """Inicializa la base de datos"""
-    if not os.path.exists(DB_NAME):
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-        
-        # Tabla de usuarios
-        cursor.execute('''
-            CREATE TABLE usuarios (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                nombre TEXT NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                rol TEXT NOT NULL CHECK(rol IN ('admin', 'doctor')),
-                fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                activo INTEGER DEFAULT 1,
-                intentos_login INTEGER DEFAULT 0,
-                bloqueado_hasta TIMESTAMP NULL,
-                ultimo_intento TIMESTAMP NULL,
-                especialidad TEXT
-            )
-        ''')
-        
-        # Tabla de pacientes
-        cursor.execute('''
-            CREATE TABLE pacientes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT NOT NULL,
-                especie TEXT NOT NULL,
-                raza TEXT,
-                edad INTEGER,
-                peso REAL,
-                color TEXT,
-                sexo TEXT CHECK(sexo IN ('M', 'F')),
-                nombre_dueno TEXT NOT NULL,
-                telefono_dueno TEXT NOT NULL,
-                email_dueno TEXT,
-                direccion_dueno TEXT,
-                fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                notas TEXT,
-                alergias TEXT,
-                vacunas TEXT
-            )
-        ''')
-        
-        # Tabla de consultas
-        cursor.execute('''
-            CREATE TABLE consultas (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                paciente_id INTEGER NOT NULL,
-                doctor_id INTEGER NOT NULL,
-                fecha_consulta TIMESTAMP NOT NULL,
-                motivo TEXT NOT NULL,
-                diagnostico TEXT,
-                tratamiento TEXT,
-                medicamentos TEXT,
-                proxima_cita TIMESTAMP,
-                estado TEXT CHECK(estado IN ('pendiente', 'completada', 'cancelada')) DEFAULT 'pendiente',
-                costo REAL,
-                notas_internas TEXT,
-                FOREIGN KEY (paciente_id) REFERENCES pacientes (id),
-                FOREIGN KEY (doctor_id) REFERENCES usuarios (id)
-            )
-        ''')
-        
-        # Tabla de historial médico
-        cursor.execute('''
-            CREATE TABLE historial_medico (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                paciente_id INTEGER NOT NULL,
-                consulta_id INTEGER,
-                fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                tipo TEXT NOT NULL CHECK(tipo IN ('consulta', 'vacuna', 'cirugia', 'analisis', 'otro')),
-                descripcion TEXT NOT NULL,
-                doctor_id INTEGER,
-                archivo_adjunto TEXT,
-                FOREIGN KEY (paciente_id) REFERENCES pacientes (id),
-                FOREIGN KEY (consulta_id) REFERENCES consultas (id),
-                FOREIGN KEY (doctor_id) REFERENCES usuarios (id)
-            )
-        ''')
-        
-        # Tabla de mantenimiento
-        cursor.execute('''
-            CREATE TABLE mantenimiento_sistema (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                titulo TEXT NOT NULL,
-                descripcion TEXT NOT NULL,
-                tipo TEXT CHECK(tipo IN ('actualizacion', 'mantenimiento', 'backup', 'error')) NOT NULL,
-                fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                realizado_por INTEGER,
-                estado TEXT CHECK(estado IN ('pendiente', 'en_proceso', 'completado')) DEFAULT 'pendiente',
-                FOREIGN KEY (realizado_por) REFERENCES usuarios (id)
-            )
-        ''')
-        
-        # Tabla de logs de seguridad
-        cursor.execute('''
-            CREATE TABLE logs_seguridad (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                tipo_evento TEXT NOT NULL,
-                usuario TEXT,
-                ip TEXT,
-                detalles TEXT,
-                fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        # Insertar usuarios iniciales con contraseñas hasheadas
-        usuarios_iniciales = [
-            ('admin', hash_password('Admin123!'), 'Administrador Principal', 'admin@vetclinic.com', 'admin'),
-            ('dra.lopez', hash_password('DraLopez456!'), 'Dra. María López', 'mlopez@vetclinic.com', 'doctor'),
-            ('dr.gomez', hash_password('DrGomez789!'), 'Dr. Carlos Gómez', 'cgomez@vetclinic.com', 'doctor')
-        ]
-        
-        for usuario in usuarios_iniciales:
-            try:
-                cursor.execute(
-                    'INSERT INTO usuarios (username, password, nombre, email, rol) VALUES (?, ?, ?, ?, ?)',
-                    usuario
-                )
-            except:
-                pass
-        
-        # Insertar pacientes de ejemplo
-        pacientes_ejemplo = [
-            ('Max', 'Perro', 'Labrador Retriever', 5, 28.5, 'Dorado', 'M',
-             'Ana García', '555-1234', 'ana.garcia@email.com', 'Calle Primavera 123',
-             'Muy juguetón, alergia a algunos alimentos', 'Alergia al pollo', 'Rabia, Parvovirus'),
-            
-            ('Luna', 'Gato', 'Siamés', 3, 4.2, 'Blanco con gris', 'F',
-             'Carlos Martínez', '555-5678', 'carlos.m@email.com', 'Av. Central 456',
-             'Tímida pero cariñosa', 'Ninguna conocida', 'Rabia, Triple felina')
-        ]
-        
-        for paciente in pacientes_ejemplo:
-            try:
-                cursor.execute('''
-                    INSERT INTO pacientes 
-                    (nombre, especie, raza, edad, peso, color, sexo, nombre_dueno, 
-                     telefono_dueno, email_dueno, direccion_dueno, notas, alergias, vacunas)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', paciente)
-            except:
-                pass
-        
-        # Insertar consultas de ejemplo
-        consultas_ejemplo = [
-            (1, 2, '2024-01-20 10:00:00', 'Vacunación anual', 
-             'Saludable, peso ideal', 'Vacuna múltiple y desparasitación',
-             'Vacuna: DHPP, Antiparasitario: Prazitel', '2024-07-20 10:00:00',
-             'completada', 850.50, 'Paciente muy tranquilo durante el procedimiento'),
-            
-            (2, 3, '2024-01-21 14:30:00', 'Pérdida de apetito',
-             'Problema dental, gingivitis leve', 'Limpieza dental y antibióticos',
-             'Clindamicina 50mg cada 12h por 7 días', '2024-01-28 15:00:00',
-             'pendiente', 1200.00, 'Revisión programada para próxima semana')
-        ]
-        
-        for consulta in consultas_ejemplo:
-            try:
-                cursor.execute('''
-                    INSERT INTO consultas 
-                    (paciente_id, doctor_id, fecha_consulta, motivo, diagnostico, 
-                     tratamiento, medicamentos, proxima_cita, estado, costo, notas_internas)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', consulta)
-            except:
-                pass
-        
-        conn.commit()
-        conn.close()
-        print(f"✅ Base de datos '{DB_NAME}' creada con datos de ejemplo")
-    else:
-        print(f"✅ Base de datos '{DB_NAME}' ya existe")
-
-def get_db_connection():
-    """Crea conexión a la base de datos"""
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def hash_password(password):
-    """Genera hash de contraseña"""
-    salt = secrets.token_hex(16)
-    password_hash = hashlib.pbkdf2_hmac(
-        'sha256',
-        password.encode('utf-8'),
-        salt.encode('utf-8'),
-        100000
-    )
-    return f"{salt}:{password_hash.hex()}"
-
-def verify_password(password, stored_hash):
-    """Verifica contraseña con hash almacenado"""
-    try:
-        salt, stored_password_hash = stored_hash.split(':')
-        password_hash = hashlib.pbkdf2_hmac(
-            'sha256',
-            password.encode('utf-8'),
-            salt.encode('utf-8'),
-            100000
-        )
-        return password_hash.hex() == stored_password_hash
-    except:
-        return False
-
-# ==================== DECORADORES ====================
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session or session.get('role') != 'admin':
-            flash('Acceso restringido a administradores', 'error')
-            return redirect(url_for('dashboard'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-# ==================== RUTAS PRINCIPALES ====================
+# ==================== RUTAS DE AUTENTICACIÓN ====================
 
 @app.route('/')
 def index():
-    """Redirige al login si no hay sesión"""
-    if 'user_id' in session:
-        if session.get('role') == 'admin':
-            return redirect(url_for('admin_dashboard'))
-        else:
-            return redirect(url_for('doctor_dashboard'))
+    """Redirige al login"""
     return redirect(url_for('login'))
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET'])
 def login():
-    """Página de login"""
-    if 'user_id' in session:
-        return redirect(url_for('index'))
-    
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
-        
-        # Verificar rate limiting por IP
-        ip = request.remote_addr
-        ahora = time.time()
-        
-        if ip not in intentos_ip:
-            intentos_ip[ip] = []
-        
-        # Limpiar intentos antiguos (5 minutos)
-        intentos_ip[ip] = [t for t in intentos_ip[ip] if ahora - t < 300]
-        
-        if len(intentos_ip[ip]) >= 10:
-            flash('Demasiados intentos desde tu IP. Espera 5 minutos.', 'error')
-            return render_template('llogin.html')
-        
-        # Buscar usuario
-        conn = get_db_connection()
-        user = conn.execute(
-            'SELECT * FROM usuarios WHERE username = ? AND activo = 1',
-            (username,)
-        ).fetchone()
-        
-        if user and verify_password(password, user['password']):
-            # Login exitoso
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            session['name'] = user['nombre']
-            session['email'] = user['email']
-            session['role'] = user['rol']
-            
-            # Resetear intentos fallidos
-            conn.execute(
-                'UPDATE usuarios SET intentos_login = 0, bloqueado_hasta = NULL WHERE id = ?',
-                (user['id'],)
-            )
-            
-            # Registrar login exitoso
-            conn.execute(
-                'INSERT INTO logs_seguridad (tipo_evento, usuario, ip, detalles) VALUES (?, ?, ?, ?)',
-                ('LOGIN_EXITOSO', username, ip, 'Inicio de sesión exitoso')
-            )
-            
-            conn.commit()
-            conn.close()
-            
-            # Limpiar intentos de esta IP
-            intentos_ip[ip] = []
-            
-            flash(f'¡Bienvenido/a, {user["nombre"]}!', 'success')
-            
-            if user['rol'] == 'admin':
-                return redirect(url_for('admin_dashboard'))
-            else:
-                return redirect(url_for('doctor_dashboard'))
-        else:
-            # Login fallido
-            if user:
-                # Incrementar intentos fallidos
-                nuevos_intentos = user['intentos_login'] + 1
-                ahora_dt = datetime.now()
-                
-                if nuevos_intentos >= MAX_INTENTOS_LOGIN:
-                    bloqueado_hasta = ahora_dt + timedelta(minutes=TIEMPO_BLOQUEO_MINUTOS)
-                    conn.execute(
-                        '''UPDATE usuarios 
-                        SET intentos_login = ?, bloqueado_hasta = ?, ultimo_intento = ? 
-                        WHERE id = ?''',
-                        (nuevos_intentos, bloqueado_hasta.isoformat(), ahora_dt.isoformat(), user['id'])
-                    )
-                    flash('Cuenta bloqueada por demasiados intentos fallidos. Espera 30 minutos.', 'error')
-                else:
-                    conn.execute(
-                        'UPDATE usuarios SET intentos_login = ?, ultimo_intento = ? WHERE id = ?',
-                        (nuevos_intentos, ahora_dt.isoformat(), user['id'])
-                    )
-                
-                # Registrar intento fallido
-                conn.execute(
-                    'INSERT INTO logs_seguridad (tipo_evento, usuario, ip, detalles) VALUES (?, ?, ?, ?)',
-                    ('LOGIN_FALLIDO', username, ip, f'Intento fallido #{nuevos_intentos}')
-                )
-            else:
-                # Usuario no existe
-                conn.execute(
-                    'INSERT INTO logs_seguridad (tipo_evento, usuario, ip, detalles) VALUES (?, ?, ?, ?)',
-                    ('LOGIN_FALLIDO', username, ip, 'Usuario no existe')
-                )
-            
-            conn.commit()
-            conn.close()
-            
-            # Agregar intento a rate limiting
-            intentos_ip[ip].append(ahora)
-            
-            flash('Usuario o contraseña incorrectos', 'error')
-    
+    """Muestra la página de login"""
     return render_template('login.html')
+
+@app.route('/login', methods=['POST'])
+def login_post():
+    """Procesa el login"""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip()
+        password = data.get('password', '')
+        
+        if not email or not password:
+            return jsonify({'success': False, 'message': 'Email y contraseña son requeridos'}), 400
+        
+        # Buscar usuario por email
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM usuarios WHERE email = ? AND activo = 1', (email,))
+        usuario = cursor.fetchone()
+        conn.close()
+        
+        if not usuario:
+            return jsonify({'success': False, 'message': 'Credenciales inválidas'}), 401
+        
+        # Verificar contraseña
+        if not verify_password(password, usuario['password']):
+            return jsonify({'success': False, 'message': 'Credenciales inválidas'}), 401
+        
+        # Guardar sesión
+        session['user_id'] = usuario['id']
+        session['username'] = usuario['username']
+        session['nombre'] = usuario['nombre']
+        session['rol'] = usuario['rol']
+        
+        # Redirigir según rol
+        if usuario['rol'] == 'admin':
+            redirect_url = url_for('admin_dashboard')
+        else:
+            redirect_url = url_for('doctor_dashboard')
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Login exitoso',
+            'redirect': redirect_url,
+            'rol': usuario['rol']
+        }), 200
+        
+    except Exception as e:
+        print(f"Error en login: {e}")
+        return jsonify({'success': False, 'message': 'Error del servidor'}), 500
 
 @app.route('/logout')
 def logout():
-    """Cerrar sesión"""
-    if 'username' in session:
-        # Registrar logout
-        conn = get_db_connection()
-        conn.execute(
-            'INSERT INTO logs_seguridad (tipo_evento, usuario, ip, detalles) VALUES (?, ?, ?, ?)',
-            ('LOGOUT', session['username'], request.remote_addr, 'Cierre de sesión')
-        )
-        conn.commit()
-        conn.close()
-    
+    """Cierra sesión"""
     session.clear()
-    flash('Has cerrado sesión correctamente', 'info')
     return redirect(url_for('login'))
 
-# ==================== DASHBOARDS ====================
-
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    """Dashboard principal (redirige según rol)"""
-    if session.get('role') == 'admin':
-        return redirect(url_for('admin_dashboard'))
-    else:
-        return redirect(url_for('doctor_dashboard'))
+# ==================== RUTAS DEL ADMIN ====================
 
 @app.route('/admin/dashboard')
-@admin_required
 def admin_dashboard():
-    """Dashboard de administrador"""
-    conn = get_db_connection()
+    """Dashboard del administrador"""
+    if 'user_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
     
-    # Estadísticas
-    stats = {
-        'total_pacientes': conn.execute('SELECT COUNT(*) FROM pacientes').fetchone()[0],
-        'total_doctores': conn.execute("SELECT COUNT(*) FROM usuarios WHERE rol = 'doctor'").fetchone()[0],
-        'consultas_hoy': conn.execute(
-            "SELECT COUNT(*) FROM consultas WHERE DATE(fecha_consulta) = DATE('now')"
-        ).fetchone()[0],
-        'consultas_pendientes': conn.execute(
-            "SELECT COUNT(*) FROM consultas WHERE estado = 'pendiente'"
-        ).fetchone()[0],
-        'ingresos_mes': conn.execute(
-            "SELECT SUM(costo) FROM consultas WHERE strftime('%Y-%m', fecha_consulta) = strftime('%Y-%m', 'now')"
-        ).fetchone()[0] or 0
-    }
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Obtener estadísticas
+        cursor.execute('SELECT COUNT(*) as total FROM pacientes')
+        total_pacientes = cursor.fetchone()['total']
+        
+        cursor.execute('''
+            SELECT COUNT(*) as total FROM consultas 
+            WHERE strftime('%Y-%m', fecha_consulta) = strftime('%Y-%m', 'now')
+        ''')
+        consultas_mes = cursor.fetchone()['total']
+        
+        cursor.execute("SELECT COUNT(*) as total FROM usuarios WHERE rol = 'doctor' AND activo = 1")
+        doctores = cursor.fetchone()['total']
+        
+        # Rendimiento de médicos
+        cursor.execute('''
+            SELECT u.nombre, COUNT(c.id) as total_consultas
+            FROM usuarios u
+            LEFT JOIN consultas c ON u.id = c.doctor_id
+            WHERE u.rol = 'doctor' AND u.activo = 1
+            GROUP BY u.id, u.nombre
+            ORDER BY total_consultas DESC
+        ''')
+        medicos_data = cursor.fetchall()
+        
+        conn.close()
+        
+        # Convertir a lista de diccionarios
+        medicos = []
+        for m in medicos_data:
+            medicos.append({
+                'nombre': m['nombre'],
+                'consultas': m['total_consultas'] or 0
+            })
+
+        return render_template('admin-dashboard.html',
+                             adminName=session['nombre'],
+                             total_pacientes=total_pacientes,
+                             consultas_mes=consultas_mes,
+                             doctores=doctores,
+                             medicos=medicos)
     
-    # Últimos registros
-    ultimos_pacientes = conn.execute(
-        'SELECT * FROM pacientes ORDER BY fecha_registro DESC LIMIT 5'
-    ).fetchall()
+    except Exception as e:
+        print(f"Error en admin_dashboard: {e}")
+        flash('Error al cargar el dashboard', 'error')
+        return redirect(url_for('login'))
+
+@app.route('/admin/stats')
+def admin_stats():
+    """Obtiene estadísticas para el dashboard admin"""
+    if 'user_id' not in session or session.get('rol') != 'admin':
+        return jsonify({'error': 'No autorizado'}), 401
     
-    ultimas_consultas = conn.execute('''
-        SELECT c.*, p.nombre as paciente_nombre, u.nombre as doctor_nombre
-        FROM consultas c
-        JOIN pacientes p ON c.paciente_id = p.id
-        JOIN usuarios u ON c.doctor_id = u.id
-        ORDER BY c.fecha_consulta DESC LIMIT 5
-    ''').fetchall()
-    
-    # Logs recientes
-    logs_recientes = conn.execute(
-        'SELECT * FROM logs_seguridad ORDER BY fecha DESC LIMIT 10'
-    ).fetchall()
-    
-    conn.close()
-    
-    return render_template('admin-dashboard.html',
-                         stats=stats,
-                         pacientes=ultimos_pacientes,
-                         consultas=ultimas_consultas,
-                         logs=logs_recientes)
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Total pacientes
+        cursor.execute('SELECT COUNT(*) as total FROM pacientes')
+        total_pacientes = cursor.fetchone()['total']
+        
+        # Consultas este mes
+        cursor.execute('''
+            SELECT COUNT(*) as total FROM consultas 
+            WHERE strftime('%Y-%m', fecha_consulta) = strftime('%Y-%m', 'now')
+        ''')
+        consultas_mes = cursor.fetchone()['total']
+        
+        # Doctores activos
+        cursor.execute("SELECT COUNT(*) as total FROM usuarios WHERE rol = 'doctor' AND activo = 1")
+        doctores = cursor.fetchone()['total']
+        
+        # Rendimiento de médicos
+        cursor.execute('''
+            SELECT u.nombre, COUNT(c.id) as total_consultas
+            FROM usuarios u
+            LEFT JOIN consultas c ON u.id = c.doctor_id
+            WHERE u.rol = 'doctor' AND u.activo = 1
+            GROUP BY u.id, u.nombre
+            ORDER BY total_consultas DESC
+        ''')
+        medicos = cursor.fetchall()
+        
+        conn.close()
+        
+        return jsonify({
+            'pacientes': total_pacientes,
+            'consultas_mes': consultas_mes,
+            'doctores': doctores,
+            'medicos': [{'nombre': m['nombre'], 'consultas': m['total_consultas']} for m in medicos]
+        })
+        
+    except Exception as e:
+        print(f"Error obteniendo stats: {e}")
+        return jsonify({'error': 'Error del servidor'}), 500
+
+# ==================== RUTAS DEL DOCTOR ====================
 
 @app.route('/doctor/dashboard')
-@login_required
 def doctor_dashboard():
-    """Dashboard de doctor"""
+    """Dashboard del doctor"""
+    if 'user_id' not in session or session['rol'] != 'doctor':
+        flash('Acceso denegado', 'error')
+        return redirect(url_for('login'))
+        
     conn = get_db_connection()
-    
-    # Estadísticas para el doctor
-    doctor_id = session['user_id']
-    
-    stats = {
-        'mis_pacientes': conn.execute(
-            'SELECT COUNT(DISTINCT paciente_id) FROM consultas WHERE doctor_id = ?',
-            (doctor_id,)
-        ).fetchone()[0],
-        'consultas_hoy': conn.execute(
-            "SELECT COUNT(*) FROM consultas WHERE doctor_id = ? AND DATE(fecha_consulta) = DATE('now')",
-            (doctor_id,)
-        ).fetchone()[0],
-        'consultas_pendientes': conn.execute(
-            "SELECT COUNT(*) FROM consultas WHERE doctor_id = ? AND estado = 'pendiente'",
-            (doctor_id,)
-        ).fetchone()[0],
-        'ingresos_mes': conn.execute(
-            "SELECT SUM(costo) FROM consultas WHERE doctor_id = ? AND strftime('%Y-%m', fecha_consulta) = strftime('%Y-%m', 'now')",
-            (doctor_id,)
-        ).fetchone()[0] or 0
-    }
-    
-    # Próximas consultas
-    proximas_consultas = conn.execute('''
-        SELECT c.*, p.nombre as paciente_nombre, p.especie
-        FROM consultas c
-        JOIN pacientes p ON c.paciente_id = p.id
-        WHERE c.doctor_id = ? AND c.estado = 'pendiente'
-        ORDER BY c.fecha_consulta ASC
-        LIMIT 5
-    ''', (doctor_id,)).fetchall()
-    
-    # Pacientes recientes
-    pacientes_recientes = conn.execute('''
-        SELECT p.* FROM pacientes p
-        JOIN consultas c ON p.id = c.paciente_id
-        WHERE c.doctor_id = ?
-        GROUP BY p.id
-        ORDER BY MAX(c.fecha_consulta) DESC
-        LIMIT 5
-    ''', (doctor_id,)).fetchall()
-    
-    conn.close()
-    
-    return render_template('doctor-dashboard.html',
-                         stats=stats,
-                         consultas=proximas_consultas,
-                         pacientes=pacientes_recientes)
+    cursor = conn.cursor()
 
-# ==================== PACIENTES ====================
-
-@app.route('/pacientes')
-@login_required
-def pacientes():
-    """Lista de pacientes"""
-    busqueda = request.args.get('q', '')
-    
-    conn = get_db_connection()
-    
-    if busqueda:
-        pacientes = conn.execute('''
-            SELECT * FROM pacientes 
-            WHERE nombre LIKE ? OR nombre_dueno LIKE ? OR especie LIKE ?
-            ORDER BY nombre
-        ''', (f'%{busqueda}%', f'%{busqueda}%', f'%{busqueda}%')).fetchall()
-    else:
-        pacientes = conn.execute('SELECT * FROM pacientes ORDER BY nombre').fetchall()
-    
-    conn.close()
-    
-    return render_template('historial-pacientes.html', pacientes=pacientes, busqueda=busqueda)
-
-@app.route('/pacientes/nuevo', methods=['GET', 'POST'])
-@login_required
-def nuevo_paciente():
-    """Registrar nuevo paciente"""
-    if request.method == 'POST':
-        try:
-            # Recoger datos del formulario
-            datos = {
-                'nombre': request.form.get('nombre', '').strip(),
-                'especie': request.form.get('especie', '').strip(),
-                'raza': request.form.get('raza', '').strip(),
-                'edad': request.form.get('edad'),
-                'peso': request.form.get('peso'),
-                'color': request.form.get('color', '').strip(),
-                'sexo': request.form.get('sexo', 'M'),
-                'nombre_dueno': request.form.get('dueno', '').strip(),
-                'telefono_dueno': request.form.get('telefono', '').strip(),
-                'email_dueno': request.form.get('email', '').strip(),
-                'direccion_dueno': request.form.get('direccion', '').strip(),
-                'notas': request.form.get('notas', '').strip(),
-                'alergias': request.form.get('alergias', '').strip(),
-                'vacunas': request.form.get('vacunas', '').strip()
-            }
-            
-            # Validaciones básicas
-            if not datos['nombre'] or not datos['especie']:
-                flash('Nombre y especie son campos requeridos', 'error')
-                return render_template('register-patient.html', datos=datos)
-            
-            # Convertir tipos
-            if datos['edad']:
-                try:
-                    datos['edad'] = int(datos['edad'])
-                except:
-                    datos['edad'] = None
-            
-            if datos['peso']:
-                try:
-                    datos['peso'] = float(datos['peso'])
-                except:
-                    datos['peso'] = None
-            
-            # Insertar en base de datos
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                INSERT INTO pacientes 
-                (nombre, especie, raza, edad, peso, color, sexo, nombre_dueno, 
-                 telefono_dueno, email_dueno, direccion_dueno, notas, alergias, vacunas)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                datos['nombre'], datos['especie'], datos['raza'], datos['edad'],
-                datos['peso'], datos['color'], datos['sexo'], datos['nombre_dueno'],
-                datos['telefono_dueno'], datos['email_dueno'], datos['direccion_dueno'],
-                datos['notas'], datos['alergias'], datos['vacunas']
-            ))
-            
-            paciente_id = cursor.lastrowid
-            
-            # Registrar en logs
-            cursor.execute(
-                'INSERT INTO logs_seguridad (tipo_evento, usuario, ip, detalles) VALUES (?, ?, ?, ?)',
-                ('PACIENTE_REGISTRADO', session['username'], request.remote_addr,
-                 f'Paciente #{paciente_id}: {datos["nombre"]}')
-            )
-            
-            conn.commit()
-            conn.close()
-            
-            flash(f'Paciente {datos["nombre"]} registrado exitosamente', 'success')
-            return redirect(url_for('pacientes'))
-            
-        except Exception as e:
-            flash(f'Error al registrar paciente: {str(e)}', 'error')
-            return render_template('register-patient.html', datos=datos)
-    
-    return render_template('register-patient.html')
-
-# ==================== CONSULTAS ====================
-
-@app.route('/consultas/nueva', methods=['GET', 'POST'])
-@login_required
-def nueva_consulta():
-    """Registrar nueva consulta"""
-    if request.method == 'POST':
-        try:
-            datos = {
-                'paciente_id': request.form.get('paciente_id'),
-                'fecha_consulta': request.form.get('fecha'),
-                'motivo': request.form.get('motivo', '').strip(),
-                'diagnostico': request.form.get('diagnostico', '').strip(),
-                'tratamiento': request.form.get('tratamiento', '').strip(),
-                'medicamentos': request.form.get('medicamentos', '').strip(),
-                'proxima_cita': request.form.get('proxima_cita'),
-                'costo': request.form.get('costo', '0'),
-                'notas': request.form.get('notas', '').strip()
-            }
-            
-            # Validaciones
-            if not datos['paciente_id'] or not datos['fecha_consulta'] or not datos['motivo']:
-                flash('Paciente, fecha y motivo son campos requeridos', 'error')
-                return redirect(url_for('nueva_consulta'))
-            
-            # Convertir costo
-            try:
-                datos['costo'] = float(datos['costo'])
-            except:
-                datos['costo'] = 0.0
-            
-            # Insertar consulta
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                INSERT INTO consultas 
-                (paciente_id, doctor_id, fecha_consulta, motivo, diagnostico, 
-                 tratamiento, medicamentos, proxima_cita, costo, notas_internas)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                datos['paciente_id'], session['user_id'], datos['fecha_consulta'],
-                datos['motivo'], datos['diagnostico'], datos['tratamiento'],
-                datos['medicamentos'], datos['proxima_cita'], datos['costo'],
-                datos['notas']
-            ))
-            
-            consulta_id = cursor.lastrowid
-            
-            # Agregar al historial médico
-            cursor.execute('''
-                INSERT INTO historial_medico 
-                (paciente_id, consulta_id, tipo, descripcion, doctor_id)
-                VALUES (?, ?, 'consulta', ?, ?)
-            ''', (datos['paciente_id'], consulta_id, datos['motivo'], session['user_id']))
-            
-            # Registrar en logs
-            cursor.execute(
-                'INSERT INTO logs_seguridad (tipo_evento, usuario, ip, detalles) VALUES (?, ?, ?, ?)',
-                ('CONSULTA_REGISTRADA', session['username'], request.remote_addr,
-                 f'Consulta #{consulta_id} para paciente #{datos["paciente_id"]}')
-            )
-            
-            conn.commit()
-            conn.close()
-            
-            flash('Consulta registrada exitosamente', 'success')
-            return redirect(url_for('doctor_dashboard'))
-            
-        except Exception as e:
-            flash(f'Error al registrar consulta: {str(e)}', 'error')
-            return redirect(url_for('nueva_consulta'))
-    
-    # GET - Obtener lista de pacientes para el formulario
-    conn = get_db_connection()
-    pacientes = conn.execute('SELECT id, nombre, especie FROM pacientes ORDER BY nombre').fetchall()
-    conn.close()
-    
-    return render_template('register-consultation.html', pacientes=pacientes)
-
-# ==================== MANTENIMIENTO ====================
-
-@app.route('/mantenimiento')
-@admin_required
-def mantenimiento():
-    """Página de mantenimiento del sistema"""
-    conn = get_db_connection()
-    
-    registros = conn.execute('''
-        SELECT m.*, u.nombre as responsable
-        FROM mantenimiento_sistema m
-        LEFT JOIN usuarios u ON m.realizado_por = u.id
-        ORDER BY m.fecha DESC
-    ''').fetchall()
-    
-    conn.close()
-    
-    return render_template('system-maintenance.html', registros=registros)
-
-@app.route('/api/estadisticas')
-@login_required
-def api_estadisticas():
-    """API para obtener estadísticas en tiempo real"""
-    conn = get_db_connection()
-    
-    stats = {}
-    
-    if session.get('role') == 'admin':
-        stats = {
-            'total_pacientes': conn.execute('SELECT COUNT(*) FROM pacientes').fetchone()[0],
-            'total_consultas': conn.execute('SELECT COUNT(*) FROM consultas').fetchone()[0],
-            'consultas_pendientes': conn.execute(
-                "SELECT COUNT(*) FROM consultas WHERE estado = 'pendiente'"
-            ).fetchone()[0],
-            'ingresos_hoy': conn.execute(
-                "SELECT SUM(costo) FROM consultas WHERE DATE(fecha_consulta) = DATE('now')"
-            ).fetchone()[0] or 0
-        }
-    else:
-        doctor_id = session['user_id']
-        stats = {
-            'mis_pacientes': conn.execute(
-                'SELECT COUNT(DISTINCT paciente_id) FROM consultas WHERE doctor_id = ?',
-                (doctor_id,)
-            ).fetchone()[0],
-            'consultas_hoy': conn.execute(
-                "SELECT COUNT(*) FROM consultas WHERE doctor_id = ? AND DATE(fecha_consulta) = DATE('now')",
-                (doctor_id,)
-            ).fetchone()[0],
-            'consultas_pendientes': conn.execute(
-                "SELECT COUNT(*) FROM consultas WHERE doctor_id = ? AND estado = 'pendiente'",
-                (doctor_id,)
-            ).fetchone()[0]
-        }
-    
-    conn.close()
-    return jsonify(stats)
-
-# ==================== INICIALIZACIÓN ====================
-
-@app.route('/inicializar')
-def inicializar_sistema():
-    """Ruta para inicializar la base de datos"""
     try:
-        init_db()
-        return '''
-            <h1>Sistema Inicializado</h1>
-            <p>Base de datos creada exitosamente.</p>
-            <p><a href="/">Ir al login</a></p>
-            <p>Credenciales:</p>
-            <ul>
-                <li>Admin: admin / Admin123!</li>
-                <li>Doctor: dra.lopez / DraLopez456!</li>
-                <li>Doctor: dr.gomez / DrGomez789!</li>
-            </ul>
-        '''
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Obtener información del doctor actual
+        cursor.execute('SELECT * FROM usuarios WHERE id = ?', (session['user_id'],))
+        doctor = cursor.fetchone()
+        
+        # Mis consultas totales
+        cursor.execute('SELECT COUNT(*) as count FROM consultas WHERE doctor_id = ?', 
+                       (session['user_id'],))
+        mis_consultas_result = cursor.fetchone()
+        mis_consultas = mis_consultas_result['count'] if mis_consultas_result else 0
+        
+        # Mis pacientes
+        cursor.execute('''
+            SELECT COUNT(DISTINCT paciente_id) as count 
+            FROM consultas 
+            WHERE doctor_id = ?
+        ''', (session['user_id'],))
+        mis_pacientes_result = cursor.fetchone()
+        mis_pacientes = mis_pacientes_result['count'] if mis_pacientes_result else 0
+        
+        # Consultas este mes
+        cursor.execute('''
+            SELECT COUNT(*) as count FROM consultas 
+            WHERE doctor_id = ? 
+            AND strftime('%Y-%m', fecha_consulta) = strftime('%Y-%m', 'now')
+        ''', (session['user_id'],))
+        consultas_mes_result = cursor.fetchone()
+        consultas_mes = consultas_mes_result['count'] if consultas_mes_result else 0
+        
+        # Consultas recientes
+        cursor.execute('''
+            SELECT c.*, p.nombre as paciente_nombre
+            FROM consultas c
+            JOIN pacientes p ON c.paciente_id = p.id
+            WHERE c.doctor_id = ?
+            ORDER BY c.fecha_consulta DESC
+            LIMIT 5
+        ''', (session['user_id'],))
+        consultas_recientes_data = cursor.fetchall()
+        
+        conn.close()
+        
+        # Convertir a lista de diccionarios
+        consultas_recientes = []
+        for c in consultas_recientes_data:
+            consultas_recientes.append(dict(c))
+        
+        return render_template('ddoctor-dashboard.html',
+                             doctor=doctor,
+                             mis_consultas=mis_consultas,
+                             mis_pacientes=mis_pacientes,
+                             consultas_mes=consultas_mes,
+                             consultas_recientes=consultas_recientes)
+        
     except Exception as e:
-        return f'<h1>Error</h1><p>{str(e)}</p>'
+        print(f"Error en doctor_dashboard: {e}")
+        flash('Error al cargar el dashboard', 'error')
+        return redirect(url_for('login'))
 
-# ==================== MANEJO DE ERRORES ====================
+@app.route('/doctor/stats')
+def doctor_stats():
+    """Obtiene estadísticas del doctor"""
+    if 'user_id' not in session or session.get('rol') != 'doctor':
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    try:
+        doctor_id = session['user_id']
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Total consultas del doctor
+        cursor.execute('SELECT COUNT(*) as total FROM consultas WHERE doctor_id = ?', (doctor_id,))
+        total_consultas = cursor.fetchone()['total']
+        
+        # Pacientes únicos del doctor
+        cursor.execute('''
+            SELECT COUNT(DISTINCT paciente_id) as total 
+            FROM consultas 
+            WHERE doctor_id = ?
+        ''', (doctor_id,))
+        pacientes_unicos = cursor.fetchone()['total']
+        
+        # Consultas este mes
+        cursor.execute('''
+            SELECT COUNT(*) as total FROM consultas 
+            WHERE doctor_id = ? 
+            AND strftime('%Y-%m', fecha_consulta) = strftime('%Y-%m', 'now')
+        ''', (doctor_id,))
+        consultas_mes = cursor.fetchone()['total']
+        
+        # Consultas recientes
+        cursor.execute('''
+            SELECT c.*, p.nombre as paciente_nombre, p.especie
+            FROM consultas c
+            JOIN pacientes p ON c.paciente_id = p.id
+            WHERE c.doctor_id = ?
+            ORDER BY c.fecha_consulta DESC
+            LIMIT 5
+        ''', (doctor_id,))
+        consultas_recientes = cursor.fetchall()
+        
+        conn.close()
+        
+        return jsonify({
+            'total_consultas': total_consultas,
+            'pacientes': pacientes_unicos,
+            'consultas_mes': consultas_mes,
+            'consultas_recientes': [dict(c) for c in consultas_recientes]
+        })
+        
+    except Exception as e:
+        print(f"Error obteniendo stats doctor: {e}")
+        return jsonify({'error': 'Error del servidor'}), 500
 
-@app.errorhandler(404)
-def pagina_no_encontrada(error):
-    return render_template('error.html', 
-                         mensaje='Página no encontrada',
-                         detalles='La página que buscas no existe.'), 404
+# ==================== RUTAS COMPARTIDAS ====================
 
-@app.errorhandler(403)
-def acceso_denegado(error):
-    return render_template('error.html',
-                         mensaje='Acceso denegado',
-                         detalles='No tienes permiso para acceder a esta página.'), 403
+@app.route('/register-patient')
+def register_patient():
+    """Página de registro de pacientes"""
+    if 'user_id' not in session:
+        flash('Debe iniciar sesión', 'error')
+        return redirect(url_for('login'))
+    
+    # Determinar a qué dashboard regresar
+    if session.get('rol') == 'admin':
+        dashboard_url = url_for('admin_dashboard')
+    else:
+        dashboard_url = url_for('doctor_dashboard')
+    
+    return render_template('register-patient.html',
+                         doctorName=session.get('nombre'),
+                         dashboard_url=dashboard_url)
 
-@app.errorhandler(500)
-def error_interno(error):
-    return render_template('error.html',
-                         mensaje='Error interno del servidor',
-                         detalles='Ha ocurrido un error inesperado.'), 500
+@app.route('/register-consultation')
+def register_consultation():
+    """Página de registro de consultas"""
+    if 'user_id' not in session:
+        flash('Debe iniciar sesión', 'error')
+        return redirect(url_for('login'))
+    
+    # Obtener lista de pacientes
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    if session.get('rol') == 'admin':
+        cursor.execute('SELECT * FROM pacientes ORDER BY nombre')
+    else:
+        # Doctor solo ve sus pacientes
+        cursor.execute('''
+            SELECT DISTINCT p.* 
+            FROM pacientes p
+            JOIN consultas c ON p.id = c.paciente_id
+            WHERE c.doctor_id = ?
+            ORDER BY p.nombre
+        ''', (session['user_id'],))
+    
+    pacientes = cursor.fetchall()
+    conn.close()
+    
+    # Determinar a qué dashboard regresar
+    if session.get('rol') == 'admin':
+        dashboard_url = url_for('admin_dashboard')
+    else:
+        dashboard_url = url_for('doctor_dashboard')
+    
+    return render_template('register-consultation.html',
+                         pacientes=pacientes,
+                         doctorName=session.get('nombre'),
+                         dashboard_url=dashboard_url)
+
+@app.route('/historial-pacientes')
+def historial_pacientes():
+    """Página de historial de pacientes"""
+    if 'user_id' not in session:
+        flash('Debe iniciar sesión', 'error')
+        return redirect(url_for('login'))
+    
+    rol = session.get('rol')
+    
+    # Determinar a qué dashboard regresar
+    if rol == 'admin':
+        dashboard_url = url_for('admin_dashboard')
+    else:
+        dashboard_url = url_for('doctor_dashboard')
+    
+    # Obtener datos según rol
+    pacientes, historial, paciente_seleccionado = obtener_datos_historial(rol, session['user_id'])
+    
+    return render_template('historial-pacientes.html',
+                         pacientes=pacientes,
+                         historial=historial,
+                         paciente_seleccionado=paciente_seleccionado,
+                         rol=rol,
+                         dashboard_url=dashboard_url)
+   
+def obtener_datos_historial(rol, user_id):
+    """Obtiene datos del historial según el rol"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    paciente_id = request.args.get('paciente_id')
+    pacientes = []
+    historial = []
+    paciente_seleccionado = None
+    
+    # Obtener pacientes
+    if rol == 'admin':
+        cursor.execute('SELECT * FROM pacientes ORDER BY nombre')
+    else:
+        cursor.execute('''
+            SELECT DISTINCT p.* 
+            FROM pacientes p
+            JOIN consultas c ON p.id = c.paciente_id
+            WHERE c.doctor_id = ?
+            ORDER BY p.nombre
+        ''', (user_id,))
+    
+    pacientes_data = cursor.fetchall()
+    pacientes = [dict(p) for p in pacientes_data]
+    
+    # Obtener historial si hay paciente seleccionado
+    if paciente_id:
+        if rol == 'admin':
+            cursor.execute('''
+                SELECT h.*, u.nombre as doctor_nombre
+                FROM historial_medico h
+                LEFT JOIN usuarios u ON h.doctor_id = u.id
+                WHERE h.paciente_id = ?
+                ORDER BY h.fecha DESC
+            ''', (paciente_id,))
+        else:
+            cursor.execute('''
+                SELECT h.*, u.nombre as doctor_nombre
+                FROM historial_medico h
+                LEFT JOIN usuarios u ON h.doctor_id = u.id
+                WHERE h.paciente_id = ? 
+                AND (h.doctor_id = ? OR h.doctor_id IS NULL)
+                ORDER BY h.fecha DESC
+            ''', (paciente_id, user_id))
+        
+        historial_data = cursor.fetchall()
+        historial = [dict(h) for h in historial_data]
+        
+        # Obtener paciente seleccionado
+        cursor.execute('SELECT * FROM pacientes WHERE id = ?', (paciente_id,))
+        paciente = cursor.fetchone()
+        paciente_seleccionado = dict(paciente) if paciente else None
+    
+    conn.close()
+    return pacientes, historial, paciente_seleccionado
+@app.route('/system-maintenance')
+def system_maintenance():
+    """Página de mantenimiento del sistema"""
+    if 'user_id' not in session or session.get('rol') != 'admin':
+        flash('Acceso denegado. Solo administradores', 'error')
+        return redirect(url_for('login'))
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 1. Total de pacientes
+        cursor.execute('SELECT COUNT(*) as total FROM pacientes')
+        total_pacientes = cursor.fetchone()['total']
+        
+        # 2. Pacientes inactivos (24+ meses sin consultas)
+        cursor.execute('''
+            SELECT p.*, MAX(c.fecha_consulta) as ultima_consulta,
+                   julianday('now') - julianday(MAX(c.fecha_consulta)) as dias_inactivo
+            FROM pacientes p
+            LEFT JOIN consultas c ON p.id = c.paciente_id
+            GROUP BY p.id
+            HAVING ultima_consulta IS NULL 
+                   OR (julianday('now') - julianday(ultima_consulta)) > 730
+            ORDER BY dias_inactivo DESC
+        ''')
+        pacientes_inactivos_data = cursor.fetchall()
+        
+        # 3. Contar inactivos
+        pacientes_inactivos = [dict(p) for p in pacientes_inactivos_data]
+        inactivos_count = len(pacientes_inactivos)
+        
+        # 4. Obtener información de médicos para los registros
+        cursor.execute("SELECT id, nombre FROM usuarios WHERE rol = 'doctor'")
+        doctores = cursor.fetchall()
+        doctores_dict = {d['id']: d['nombre'] for d in doctores}
+        
+        # 5. Para cada paciente inactivo, obtener info del médico que lo registró
+        for paciente in pacientes_inactivos:
+            # Buscar la última consulta para obtener el médico
+            cursor.execute('''
+                SELECT c.doctor_id, u.nombre as doctor_nombre
+                FROM consultas c
+                JOIN usuarios u ON c.doctor_id = u.id
+                WHERE c.paciente_id = ?
+                ORDER BY c.fecha_consulta DESC
+                LIMIT 1
+            ''', (paciente['id'],))
+            ultima_consulta = cursor.fetchone()
+            
+            if ultima_consulta:
+                paciente['doctor_id'] = ultima_consulta['doctor_id']
+                paciente['doctor_nombre'] = ultima_consulta['doctor_nombre']
+            else:
+                paciente['doctor_id'] = None
+                paciente['doctor_nombre'] = 'No registrado'
+            
+            # Calcular meses desde última consulta
+            if paciente.get('ultima_consulta'):
+                cursor.execute('''
+                    SELECT ROUND((julianday('now') - julianday(?)) / 30.44, 1) as meses
+                ''', (paciente['ultima_consulta'],))
+                meses_result = cursor.fetchone()
+                paciente['meses_inactivo'] = meses_result['meses'] if meses_result else 'N/A'
+            else:
+                paciente['meses_inactivo'] = 'N/A'
+        
+        conn.close()
+        
+        return render_template('system-maintenance.html',
+                             total_pacientes=total_pacientes,
+                             pacientes_inactivos=pacientes_inactivos,
+                             inactivos_count=inactivos_count,
+                             adminName=session['nombre'])
+        
+    except Exception as e:
+        print(f"Error en system_maintenance: {e}")
+        flash('Error al cargar la página de mantenimiento', 'error')
+        return redirect(url_for('admin_dashboard'))
+
+# ==================== API ENDPOINTS ====================
+
+@app.route('/api/pacientes', methods=['GET'])
+def get_pacientes():
+    """Obtiene lista de pacientes"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM pacientes ORDER BY nombre')
+        pacientes = cursor.fetchall()
+        conn.close()
+        
+        return jsonify([dict(p) for p in pacientes])
+    except Exception as e:
+        print(f"Error obteniendo pacientes: {e}")
+        return jsonify({'error': 'Error del servidor'}), 500
+
+@app.route('/api/session')
+def get_session():
+    """Obtiene información de la sesión actual"""
+    if 'user_id' not in session:
+        return jsonify({'authenticated': False})
+    
+    return jsonify({
+        'authenticated': True,
+        'nombre': session.get('nombre'),
+        'username': session.get('username'),
+        'rol': session.get('rol')
+    })
+
+# ==================== API PARA MANTENIMIENTO ====================
+
+@app.route('/api/archive-patients', methods=['POST'])
+def archive_patients():
+    """Archiva pacientes seleccionados"""
+    if 'user_id' not in session or session.get('rol') != 'admin':
+        return jsonify({'success': False, 'message': 'No autorizado'}), 401
+    
+    try:
+        data = request.get_json()
+        patient_ids = data.get('patient_ids', [])
+        
+        if not patient_ids:
+            return jsonify({'success': False, 'message': 'No hay pacientes seleccionados'}), 400
+        
+        # Aquí implementarías la lógica para archivar
+        # Por ejemplo, mover a una tabla de pacientes_archivados
+        # o marcar como inactivo
+        
+        return jsonify({
+            'success': True, 
+            'message': f'{len(patient_ids)} pacientes archivados',
+            'archived': patient_ids
+        })
+        
+    except Exception as e:
+        print(f"Error archivando pacientes: {e}")
+        return jsonify({'success': False, 'message': 'Error del servidor'}), 500
+
+@app.route('/api/delete-patients', methods=['POST'])
+def delete_patients():
+    """Elimina pacientes seleccionados"""
+    if 'user_id' not in session or session.get('rol') != 'admin':
+        return jsonify({'success': False, 'message': 'No autorizado'}), 401
+    
+    try:
+        data = request.get_json()
+        patient_ids = data.get('patient_ids', [])
+        
+        if not patient_ids:
+            return jsonify({'success': False, 'message': 'No hay pacientes seleccionados'}), 400
+        
+        # Confirmación adicional para eliminación
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 1. Primero eliminar historial médico
+        cursor.executemany(
+            'DELETE FROM historial_medico WHERE paciente_id = ?',
+            [(pid,) for pid in patient_ids]
+        )
+        
+        # 2. Eliminar consultas
+        cursor.executemany(
+            'DELETE FROM consultas WHERE paciente_id = ?',
+            [(pid,) for pid in patient_ids]
+        )
+        
+        # 3. Finalmente eliminar pacientes
+        cursor.executemany(
+            'DELETE FROM pacientes WHERE id = ?',
+            [(pid,) for pid in patient_ids]
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'{len(patient_ids)} pacientes eliminados permanentemente',
+            'deleted': patient_ids
+        })
+        
+    except Exception as e:
+        print(f"Error eliminando pacientes: {e}")
+        return jsonify({'success': False, 'message': 'Error del servidor'}), 500
+
+# ==================== API ADICIONALES ÚTILES ====================
+
+@app.route('/api/patient/<int:patient_id>', methods=['GET'])
+def get_patient(patient_id):
+    """Obtiene información de un paciente específico"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM pacientes WHERE id = ?', (patient_id,))
+        paciente = cursor.fetchone()
+        conn.close()
+        
+        if not paciente:
+            return jsonify({'error': 'Paciente no encontrado'}), 404
+        
+        return jsonify(dict(paciente))
+    except Exception as e:
+        print(f"Error obteniendo paciente: {e}")
+        return jsonify({'error': 'Error del servidor'}), 500
+
+@app.route('/api/patient-history/<int:patient_id>', methods=['GET'])
+def get_patient_history(patient_id):
+    """Obtiene historial médico de un paciente"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT h.*, u.nombre as doctor_nombre
+            FROM historial_medico h
+            LEFT JOIN usuarios u ON h.doctor_id = u.id
+            WHERE h.paciente_id = ?
+            ORDER BY h.fecha DESC
+        ''', (patient_id,))
+        historial = cursor.fetchall()
+        
+        conn.close()
+        
+        return jsonify([dict(h) for h in historial])
+    except Exception as e:
+        print(f"Error obteniendo historial: {e}")
+        return jsonify({'error': 'Error del servidor'}), 500
 
 # ==================== EJECUCIÓN ====================
 
 if __name__ == '__main__':
-    # Verificar si la base de datos existe
-    if not os.path.exists(DB_NAME):
-        print("⚠️  Base de datos no encontrada. Ejecuta /inicializar para crearla.")
-    
     app.run(debug=True, host='0.0.0.0', port=5000)
