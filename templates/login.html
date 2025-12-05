@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login | Oregón VetCare</title>
+
+    <!-- Hoja de estilos -->
+    <link rel="stylesheet" href="../static/css/llogin.css" />
+
+    <!-- Íconos Lucide -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/lucide-static/font/lucide.css"
+    />
+  </head>
+
+  <body class="login-background">
+    <div class="container">
+      <!-- Logo -->
+      <div class="header">
+        <div class="login-logo">
+          <img
+            src="../icons/1logo-vetcare.svg"
+            alt="Logo VetCare"
+            class="logo-img"
+          />
+        </div>
+
+        <h1 class="title">Clínica Veterinaria</h1>
+        <h2 class="subtitle">Oregón VetCare</h2>
+        <p class="description">Sistema de Gestión Médica</p>
+      </div>
+
+      <!-- Tarjeta de Login -->
+      <div class="login-card">
+        <h3 class="card-title">Iniciar Sesión</h3>
+        {% with messages = get_flashed_messages(with_categories=true) %} {% if
+        messages %} {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %} {% endif %} {% endwith %}
+        <form method="POST" action="{{ url_for('login_post') }}">
+          <!-- Email -->
+          <label for="email">Correo electrónico</label>
+          <input
+            type="email"
+            id="email"
+            placeholder="usuario@vetcare.com"
+            class="login-input"
+            required
+          />
+
+          <!-- Password -->
+          <label for="password">Contraseña</label>
+          <input
+            type="password"
+            id="password"
+            placeholder="••••••••"
+            class="login-input"
+            required
+          />
+
+          <!-- Botón -->
+          <button type="submit" class="login-btn">Ingresar al Sistema</button>
+        </form>
+      </div>
+
+      <p class="footer-note">Cada médico accede con su propia cuenta.</p>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/login.js') }}"></script>
+  </body>
+</html>

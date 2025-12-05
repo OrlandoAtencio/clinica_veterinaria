@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrar Consulta</title>
+    <link rel="stylesheet" href="../static/css/register-consultation.css">
+</head>
+
+<body class="page-background">
+
+    <div class="container">
+
+        <!-- Header -->
+        <div class="header">
+            <a href="{{ url_for('admin_dashboard') if session.get('rol') == 'admin' else url_for('doctor_dashboard') }}" class="back-btn"></a>
+                ←
+            </a>
+
+            <div>
+                <h2 class="title">Registrar Nueva Consulta</h2>
+                <p class="subtitle">Complete los detalles de la consulta médica</p>
+            </div>
+        </div>
+
+        <!-- Mensaje de éxito -->
+        <div class="success-message" id="successBox" style="display:none;">
+            ✓ Consulta registrada exitosamente
+        </div>
+
+        <!-- Formulario Principal -->
+        <div class="form-card">
+            <form id="consultationForm" method="POST" action="{{ url_for('register_consultation') }}">
+
+                <!-- Selección de Paciente -->
+                <div class="section">
+                    <h3 class="section-title">Selección de Paciente</h3>
+
+                    <label for="patientId" class="label">Paciente *</label>
+                    <select id="patientId" class="input">
+                        <option value="">Seleccionar paciente</option>
+                        <!-- El backend debe cargar aquí los pacientes -->
+                    </select>
+                    <p class="error" id="errPatient"></p>
+
+                    <!-- Info del Paciente -->
+                    <div id="patientInfo" class="patient-info" style="display:none;">
+                        <p><strong>Especie:</strong> <span id="infoSpecies"></span></p>
+                        <p><strong>Raza:</strong> <span id="infoBreed"></span></p>
+                        <p><strong>Edad:</strong> <span id="infoAge"></span> años</p>
+                    </div>
+                </div>
+
+                <!-- Detalles de Consulta -->
+                <div class="section">
+                    <h3 class="section-title">Detalles de la Consulta</h3>
+
+                    <label for="date" class="label">Fecha *</label>
+                    <input type="date" id="date" class="input">
+                    <p class="error" id="errDate"></p>
+
+                    <label for="diagnosis" class="label">Diagnóstico *</label>
+                    <input type="text" id="diagnosis" class="input" placeholder="Ej: Vacunación anual">
+                    <p class="error" id="errDiagnosis"></p>
+
+                    <label for="details" class="label">Detalles y Observaciones *</label>
+                    <textarea id="details" class="textarea" placeholder="Describa los síntomas, tratamiento prescrito, medicamentos, etc."></textarea>
+                    <p class="error" id="errDetails"></p>
+                </div>
+
+                <!-- Doctor -->
+                <div class="doctor-box">
+                    <p><strong>Médico que atiende:</strong> <span id="doctorName">Nombre del Médico</span></p>
+                </div>
+
+                <!-- Botones -->
+                <div class="buttons">
+                    <a href="{{ url_for('admin_dashboard') if session.get('rol') == 'admin' else url_for('doctor_dashboard') }}" class="btn-cancelar"></a>Cancelar</a>
+                    <button type="submit" class="btn-guardar">💾 Guardar Consulta</button>
+                </div>
+
+            </form>
+        </div>
+
+    </div>
+
+</body>
+</html>

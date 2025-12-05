@@ -1,0 +1,212 @@
+/* ============================================================
+   ESTILOS GENERALES
+============================================================ */
+body {
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(135deg, #e6fffa, #f0f9ff);
+    font-family: "Segoe UI", sans-serif;
+    color: #0f3f3f;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 30px auto;
+    padding: 0 20px;
+}
+
+/* ============================================================
+   TOPBAR
+============================================================ */
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #0d9488;
+    color: white;
+    padding: 16px 24px;
+    border-radius: 14px;
+    box-shadow: 0 3px 15px rgba(0,0,0,0.2);
+}
+
+.topbar h2 {
+    font-size: 22px;
+    margin: 0;
+}
+
+.logout-btn {
+    padding: 10px 18px;
+    background: #ef4444;
+    border: none;
+    color: white;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.25s;
+}
+
+.logout-btn:hover {
+    background: #dc2626;
+    transform: scale(1.04);
+}
+
+/* ============================================================
+   TARJETA DE BIENVENIDA
+============================================================ */
+.welcome-card {
+    margin-top: 20px;
+    background: white;
+    padding: 22px;
+    border-radius: 14px;
+    border-left: 5px solid #0d9488;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+/* ============================================================
+   TARJETAS DE ESTADÍSTICAS
+============================================================ */
+.stats-grid {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 18px;
+}
+
+.stat-card {
+    padding: 18px;
+    border-radius: 14px;
+    color: white;
+    position: relative;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+}
+
+/* Colores */
+.teal { background: #0d9488; }
+.cyan { background: #0891b2; }
+.blue { background: #2563eb; }
+
+/* Iconos */
+.stat-header {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.icon-box {
+    width: 42px;
+    height: 42px;
+}
+
+.icon {
+    width: 100%;
+    height: 100%;
+    stroke-width: 1.8;
+}
+
+/* Texto */
+.label {
+    font-size: 14px;
+    margin: 5px 0 2px;
+}
+
+.value {
+    font-size: 26px;
+    font-weight: bold;
+}
+
+/* ============================================================
+   RENDIMIENTO DE MÉDICOS
+============================================================ */
+.doctor-performance {
+    background: white;
+    padding: 24px;
+    border-radius: 14px;
+    margin-top: 30px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.10);
+}
+
+.doctor-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #e0f7f5;
+}
+
+.doctor-row:last-child {
+    border-bottom: none;
+}
+
+.doctor-info {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.doctor-icon {
+    font-size: 28px;
+}
+
+.doctor-name {
+    margin: 0;
+    font-size: 16px;
+    color: #0d9488;
+}
+
+.doctor-role {
+    margin: 0;
+    font-size: 13px;
+    color: #555;
+}
+
+.doctor-number {
+    font-size: 20px;
+    font-weight: bold;
+    color: #0d9488;
+}
+
+.doctor-label {
+    font-size: 12px;
+    color: #666;
+}
+
+/* ============================================================
+   BOTONES PRINCIPALES
+============================================================ */
+.buttons-grid {
+    margin-top: 32px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
+}
+
+.action-btn {
+    background: white;
+    padding: 22px;
+    border-radius: 14px;
+    border-left: 5px solid #0d9488;
+    text-decoration: none;
+    color: #0f3f3f;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.10);
+    transition: 0.25s;
+}
+
+.action-btn:hover {
+    background: #f0fdfa;
+    transform: translateY(-3px);
+}
+
+.action-btn p {
+    margin: 0;
+    font-size: 17px;
+    color: #0d9488;
+    font-weight: 600;
+}
+
+.action-btn span {
+    font-size: 13px;
+    color: #555;
+    display: block;
+    margin-top: 6px;
+}
