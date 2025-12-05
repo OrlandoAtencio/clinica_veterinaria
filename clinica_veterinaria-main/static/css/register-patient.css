@@ -1,0 +1,158 @@
+body {
+  font-family: Arial, sans-serif;
+  background-image: url("333.jpg"); 
+    background-size: cover;                         
+    background-repeat: no-repeat;                   
+    background-position: center;                    
+    min-height: 100vh; 
+}
+
+.container {
+  max-width: 800px;
+  margin: auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.back-btn {
+  width: 45px;
+  height: 45px;
+  background: white;
+  border: 1px solid #99f6e4;
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+.back-btn:hover {
+  background: #ccfbf1;
+}
+
+.title {
+  font-size: 28px;
+  color: #134e4a;
+}
+
+.subtitle {
+  color: #0d9488;
+}
+
+.success-message {
+  margin-top: 15px;
+  padding: 15px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #047857;
+  border-radius: 10px;
+}
+
+.hidden {
+  display: none;
+}
+
+.form-card {
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+  margin-top: 25px;
+  border: 1px solid #99f6e4;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+}
+
+.section {
+  margin-bottom: 25px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #99f6e4;
+}
+
+.section-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 15px;
+  color: #0f766e;
+}
+
+label {
+  font-size: 14px;
+  color: #115e59;
+}
+
+input, select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #99f6e4;
+  border-radius: 10px;
+  margin-top: 5px;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: #14b8a6;
+  box-shadow: 0 0 0 3px #99f6e4;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 15px;
+}
+
+.error {
+  color: #dc2626;
+  font-size: 13px;
+  margin-top: 5px;
+}
+
+.registered-box {
+  background: #f0fdfa;
+  padding: 15px;
+  border: 1px solid #99f6e4;
+  border-radius: 10px;
+  color: #115e59;
+}
+
+.buttons {
+  margin-top: 20px;
+  display: flex;
+  gap: 15px;
+}
+
+.cancel-btn {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #99f6e4;
+  color: #0d9488;
+  background: white;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.cancel-btn:hover {
+  background: #ccfbf1;
+}
+
+.save-btn {
+  flex: 1;
+  padding: 12px;
+  background: linear-gradient(to right, #14b8a6, #06b6d4);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0, 150, 136, 0.3);
+}
+
+.save-btn:hover {
+  background: linear-gradient(to right, #0d9488, #0891b2);
+}

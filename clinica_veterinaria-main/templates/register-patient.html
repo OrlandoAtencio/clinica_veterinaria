@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Registrar Paciente</title>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="../static/css/register-patient.css">
+</head>
+
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+      <a href="{{ url_for('admin_dashboard') if session.get('rol') == 'admin' else url_for('doctor_dashboard') }}" class="back-btn">←</a>
+      <i data-lucide="arrow-left"></i>
+    </button>
+
+    <div>
+      <h2 class="title">Registrar Nuevo Paciente</h2>
+      <p class="subtitle">Complete los datos del paciente y su propietario</p>
+    </div>
+  </div>
+
+  <!-- Success Message -->
+  <div id="successBox" class="success-message hidden">
+    ✓ Paciente registrado exitosamente
+  </div>
+
+  <!-- Form -->
+  <div class="form-card">
+    <form id="patientForm" method="POST" action="{{ url_for('register_patient') }}">
+
+      <!-- Owner Info -->
+      <div class="section">
+        <div class="section-header">
+          <i data-lucide="user"></i>
+          <h3>Información del Propietario</h3>
+        </div>
+
+        <label>Nombre del Dueño *</label>
+        <input type="text" id="ownerName" placeholder="Ej: Naireth Mendoza">
+        <p class="error" id="errOwner"></p>
+      </div>
+
+      <!-- Patient Info -->
+      <div class="section">
+        <div class="section-header">
+          <i data-lucide="paw-print"></i>
+          <h3>Información del Paciente</h3>
+        </div>
+
+        <div class="grid">
+          <div>
+            <label>Nombre del Paciente *</label>
+            <input type="text" id="patientName" placeholder="Ej: Max">
+            <p class="error" id="errPatientName"></p>
+          </div>
+
+          <div>
+            <label>Especie *</label>
+            <select id="species">
+              <option value="">Seleccionar especie</option>
+              <option value="Perro">Perro</option>
+              <option value="Gato">Gato</option>
+              <option value="Ave">Ave</option>
+              <option value="Conejo">Conejo</option>
+              <option value="Reptil">Reptil</option>
+              <option value="Otro">Otro</option>
+            </select>
+            <p class="error" id="errSpecies"></p>
+          </div>
+
+          <div>
+            <label>Raza *</label>
+            <input type="text" id="breed" placeholder="Ej: Golden Retriever">
+            <p class="error" id="errBreed"></p>
+          </div>
+
+          <div>
+            <label>Edad (años) *</label>
+            <input type="number" id="age" min="0" placeholder="Ej: 5">
+            <p class="error" id="errAge"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info “Registrado por” -->
+      <div class="registered-box">
+        <p><strong>Registrado por:</strong> Doctor del Sistema</p>
+      </div>
+
+      <!-- Buttons -->
+      <div class="buttons">
+        <a href="{{ url_for('admin_dashboard') if session.get('rol') == 'admin' else url_for('doctor_dashboard') }}" class="cancel-btn">Cancelar</a>
+
+        <button type="submit" class="save-btn">
+          <i data-lucide="save"></i>
+          Guardar Paciente
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<script>
+lucide.createIcons();
+
+function goBack() {
+  window.history.back();
+}
+
+const form = document.getElementById("patientForm");
+const successBox = document.getElementById("successBox");
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+
+  // Clean errors
+  document.querySelectorAll(".error").forEach(e => e.textContent = "");
+
+  const owner = ownerName.value.trim();
+  const pName = patientName.value.trim();
+  const species = document.getElementById("species").value;
+  const breed = breed.value.trim();
+  const age = document.getElementById("age").value;
+
+  let hasError = false;
+
+  if (!owner) { errOwner.textContent = "El nombre del dueño es requerido"; hasError = true; }
+  if (!pName) { errPatientName.textContent = "El nombre del paciente es requerido"; hasError = true; }
+  if (!species) { errSpecies.textContent = "La especie es requerida"; hasError = true; }
+  if (!breed) { errBreed.textContent = "La raza es requerida"; hasError = true; }
+  if (age === "" || age < 0) { errAge.textContent = "La edad debe ser válida"; hasError = true; }
+
+  if (hasError) return;
+
+  successBox.classList.remove("hidden");
+
+  setTimeout(() => {
+    successBox.classList.add("hidden");
+  }, 3000);
+
+  form.reset();
+});
+</script>
+
+</body>
+</html>
