@@ -13,7 +13,7 @@
 
         <!-- Header -->
         <div class="header">
-            <a href="{{ url_for('admin_dashboard') if session.get('rol') == 'admin' else url_for('doctor_dashboard') }}" class="back-btn"></a>
+            <a href="{{ url_for('admin_dashboard') if session.get('rol') == 'admin' else url_for('doctor_dashboard') }}" class="back-btn">
                 ←
             </a>
 
@@ -75,7 +75,7 @@
 
                 <!-- Botones -->
                 <div class="buttons">
-                    <a href="{{ url_for('admin_dashboard') if session.get('rol') == 'admin' else url_for('doctor_dashboard') }}" class="btn-cancelar"></a>Cancelar</a>
+                    
                     <button type="submit" class="btn-guardar">💾 Guardar Consulta</button>
                 </div>
 

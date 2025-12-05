@@ -1,20 +1,29 @@
 /* ===========================
    ESTILOS GENERALES
 =========================== */
+/* Fondo blanco para el header */
+.header {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 2rem;
+    border-radius: 1rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
 body.login-background {
     margin: 0;
     padding: 0;
-    background: #f3fdfd;
+    background: #32a1a1 url('../img/clinica_veterinaria.jpg') center/cover no-repeat fixed;
     font-family: "Segoe UI", sans-serif;
-    color: #0f3f3f;
+    color: #000000;
 }
 
 /* Contenedor principal */
 .container {
     max-width: 420px;
     margin: 40px auto;
-    padding: 20px;
-    text-align: center;
+    padding: 60px;
+    text-align: center; 
 }
 
 /* ===========================
