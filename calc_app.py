@@ -361,7 +361,6 @@ def register_patient():
 @app.route('/register-consultation', methods=['GET', 'POST'])
 def register_consultation():
 
-    # --- Si carga la página (GET) ---
     if request.method == 'GET':
         if 'user_id' not in session:
             flash('Debe iniciar sesión', 'error')
@@ -382,37 +381,50 @@ def register_consultation():
             patients=pacientes
         )
 
-    # --- Si recibe los datos (POST vía fetch) ---
-    if request.method == 'POST':
-        data = request.get_json()
+    # POST - Guardar consulta + historial
+    data = request.get_json()
 
-        if not data:
-            return jsonify({"success": False, "error": "Datos no recibidos"})
+    if not data:
+        return jsonify({"success": False, "error": "Datos no recibidos"})
 
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-            cursor.execute("""
-                INSERT INTO consultas (paciente_id, doctor_id, fecha_consulta, motivo, diagnostico, estado)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (
-                data["patientId"],
-                session.get("user_id"),
-                data["date"],
-                data["diagnosis"],
-                data["details"],
-                "pendiente"
-            ))
+        # 1️⃣ Guardar en tabla consultas
+        cursor.execute("""
+            INSERT INTO consultas (paciente_id, doctor_id, fecha_consulta, motivo, diagnostico, estado)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            data["patientId"],
+            session.get("user_id"),
+            data["date"],
+            data["diagnosis"],
+            data["details"],
+            "pendiente"
+        ))
 
-            conn.commit()
-            conn.close()
+        # 2️⃣ Guardar también en historial médico
+        cursor.execute("""
+            INSERT INTO historial_medico (paciente_id, fecha, diagnostico, doctor_id, tipo, descripcion)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            data["patientId"],
+            data["date"],
+            data["diagnosis"],        # Diagnóstico
+            session.get("user_id"),   # Doctor
+            "consulta",               # Tipo de evento
+            data["details"]           # Descripción de la consulta
+        ))
 
-            return jsonify({"success": True})
+        conn.commit()
+        conn.close()
 
-        except Exception as e:
-            print("Error BD:", e)
-            return jsonify({"success": False, "error": str(e)})
+        return jsonify({"success": True})  # <--- SIEMPRE retornamos
+
+    except Exception as e:
+        print("Error BD:", e)
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route('/historial-pacientes')
 def historial_pacientes():
@@ -440,7 +452,6 @@ def historial_pacientes():
                          dashboard_url=dashboard_url)
    
 def obtener_datos_historial(rol, user_id):
-    """Obtiene datos del historial según el rol"""
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -449,7 +460,7 @@ def obtener_datos_historial(rol, user_id):
     historial = []
     paciente_seleccionado = None
     
-    # Obtener pacientes
+    # Obtener pacientes disponibles
     if rol == 'admin':
         cursor.execute('SELECT * FROM pacientes ORDER BY nombre')
     else:
@@ -464,11 +475,15 @@ def obtener_datos_historial(rol, user_id):
     pacientes_data = cursor.fetchall()
     pacientes = [dict(p) for p in pacientes_data]
     
-    # Obtener historial si hay paciente seleccionado
+    # Obtener historial si un paciente está seleccionado
     if paciente_id:
+        
         if rol == 'admin':
             cursor.execute('''
-                SELECT h.*, u.nombre as doctor_nombre
+                SELECT 
+                    h.fecha,
+                    h.diagnostico AS motivo,
+                    u.nombre as doctor_nombre
                 FROM historial_medico h
                 LEFT JOIN usuarios u ON h.doctor_id = u.id
                 WHERE h.paciente_id = ?
@@ -476,7 +491,10 @@ def obtener_datos_historial(rol, user_id):
             ''', (paciente_id,))
         else:
             cursor.execute('''
-                SELECT h.*, u.nombre as doctor_nombre
+                SELECT 
+                    h.fecha,
+                    h.diagnostico AS motivo,
+                    u.nombre as doctor_nombre
                 FROM historial_medico h
                 LEFT JOIN usuarios u ON h.doctor_id = u.id
                 WHERE h.paciente_id = ? 
@@ -487,13 +505,15 @@ def obtener_datos_historial(rol, user_id):
         historial_data = cursor.fetchall()
         historial = [dict(h) for h in historial_data]
         
-        # Obtener paciente seleccionado
+        # Datos del paciente seleccionado
         cursor.execute('SELECT * FROM pacientes WHERE id = ?', (paciente_id,))
         paciente = cursor.fetchone()
         paciente_seleccionado = dict(paciente) if paciente else None
     
     conn.close()
     return pacientes, historial, paciente_seleccionado
+
+
 @app.route('/system-maintenance')
 def system_maintenance():
     """Página de mantenimiento del sistema"""
@@ -585,7 +605,15 @@ def get_pacientes():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM pacientes ORDER BY nombre')
+        cursor.execute('''
+            SELECT id,
+                   nombre,
+                   especie,
+                   raza,
+                   nombre_dueno AS dueno
+            FROM pacientes
+            ORDER BY nombre
+        ''')
         pacientes = cursor.fetchall()
         conn.close()
         
@@ -707,9 +735,8 @@ def get_patient(patient_id):
         print(f"Error obteniendo paciente: {e}")
         return jsonify({'error': 'Error del servidor'}), 500
 
-@app.route('/api/patient-history/<int:patient_id>', methods=['GET'])
+@app.route('/api/patient-history/<int:patient_id>', methods=['GET', 'POST'])
 def get_patient_history(patient_id):
-    """Obtiene historial médico de un paciente"""
     if 'user_id' not in session:
         return jsonify({'error': 'No autorizado'}), 401
     
@@ -718,19 +745,23 @@ def get_patient_history(patient_id):
         cursor = conn.cursor()
         
         cursor.execute('''
-            SELECT h.*, u.nombre as doctor_nombre
+            SELECT 
+                fecha AS fecha,
+                diagnostico AS motivo,
+                u.nombre as doctor_nombre
             FROM historial_medico h
             LEFT JOIN usuarios u ON h.doctor_id = u.id
             WHERE h.paciente_id = ?
             ORDER BY h.fecha DESC
         ''', (patient_id,))
+
         historial = cursor.fetchall()
-        
         conn.close()
         
         return jsonify([dict(h) for h in historial])
+    
     except Exception as e:
-        print(f"Error obteniendo historial: {e}")
+        print("Error obteniendo historial: ", e)
         return jsonify({'error': 'Error del servidor'}), 500
 
 # ==================== EJECUCIÓN ====================

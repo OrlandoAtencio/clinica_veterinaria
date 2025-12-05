@@ -5,7 +5,7 @@ body {
     margin: 0;
     padding: 0;
     font-family: "Segoe UI", sans-serif;
-    background: #f3fdfd;
+    background: #f3fdfd url('../img/clinic 2.jpg') center/cover no-repeat fixed;
     color: #0f3f3f;
 }
 
@@ -44,8 +44,11 @@ body {
    HEADER BIENVENIDA
 =========================== */
 .header-welcome {
-    padding: 25px 20px;
-    text-align: center;
+    background: rgba(255, 255, 255, 0.473);
+    padding: 2rem;
+    border-radius: 1rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .header-welcome .sub {
