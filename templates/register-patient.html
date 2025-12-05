@@ -45,7 +45,7 @@
         </div>
 
         <label>Nombre del Dueño *</label>
-        <input type="text" id="ownerName" placeholder="Ej: Naireth Mendoza">
+          <input type="text" id="ownerName" name="ownerName" placeholder="Ej: Naireth Mendoza">
         <p class="error" id="errOwner"></p>
       </div>
 
@@ -59,13 +59,13 @@
         <div class="grid">
           <div>
             <label>Nombre del Paciente *</label>
-            <input type="text" id="patientName" placeholder="Ej: Max">
+              <input type="text" id="patientName" name="patientName" placeholder="Ej: Max">
             <p class="error" id="errPatientName"></p>
           </div>
 
           <div>
             <label>Especie *</label>
-            <select id="species">
+            <select id="species" name="species">
               <option value="">Seleccionar especie</option>
               <option value="Perro">Perro</option>
               <option value="Gato">Gato</option>
@@ -79,13 +79,13 @@
 
           <div>
             <label>Raza *</label>
-            <input type="text" id="breed" placeholder="Ej: Golden Retriever">
+              <input type="text" id="breed" name="breed" placeholder="Ej: Golden Retriever">
             <p class="error" id="errBreed"></p>
           </div>
 
           <div>
             <label>Edad (años) *</label>
-            <input type="number" id="age" min="0" placeholder="Ej: 5">
+              <input type="number" id="age" name="age" min="0" placeholder="Ej: 5">
             <p class="error" id="errAge"></p>
           </div>
         </div>
@@ -120,36 +120,51 @@ function goBack() {
 const form = document.getElementById("patientForm");
 const successBox = document.getElementById("successBox");
 
-form.addEventListener("submit", (e) => {
-  e.preventDefault();
+form.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-  // Clean errors
-  document.querySelectorAll(".error").forEach(e => e.textContent = "");
+    document.querySelectorAll(".error").forEach(e => e.textContent = "");
 
-  const owner = ownerName.value.trim();
-  const pName = patientName.value.trim();
-  const species = document.getElementById("species").value;
-  const breed = breed.value.trim();
-  const age = document.getElementById("age").value;
+    const owner = ownerName.value.trim();
+    const pName = patientName.value.trim();
+    const species = document.getElementById("species").value;
+    const breed = document.getElementById("breed").value.trim();
+    const age = document.getElementById("age").value;
 
-  let hasError = false;
+    let hasError = false;
 
-  if (!owner) { errOwner.textContent = "El nombre del dueño es requerido"; hasError = true; }
-  if (!pName) { errPatientName.textContent = "El nombre del paciente es requerido"; hasError = true; }
-  if (!species) { errSpecies.textContent = "La especie es requerida"; hasError = true; }
-  if (!breed) { errBreed.textContent = "La raza es requerida"; hasError = true; }
-  if (age === "" || age < 0) { errAge.textContent = "La edad debe ser válida"; hasError = true; }
+    if (!owner) { errOwner.textContent = "El nombre del dueño es requerido"; hasError = true; }
+    if (!pName) { errPatientName.textContent = "El nombre del paciente es requerido"; hasError = true; }
+    if (!species) { errSpecies.textContent = "La especie es requerida"; hasError = true; }
+    if (!breed) { errBreed.textContent = "La raza es requerida"; hasError = true; }
+    if (age === "" || age < 0) { errAge.textContent = "La edad debe ser válida"; hasError = true; }
 
-  if (hasError) return;
+    if (hasError) return;
 
-  successBox.classList.remove("hidden");
+    // 📌 Enviar datos a Flask por fetch
+    let resp = await fetch("{{ url_for('register_patient') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            ownerName: owner,
+            patientName: pName,
+            species: species,
+            breed: breed,
+            age: age
+        })
+    });
 
-  setTimeout(() => {
-    successBox.classList.add("hidden");
-  }, 3000);
+    let result = await resp.json();
 
-  form.reset();
+    if (result.success) {
+        successBox.classList.remove("hidden");
+        setTimeout(() => successBox.classList.add("hidden"), 3000);
+        form.reset();
+    } else {
+        alert("Error al registrar paciente");
+    }
 });
+
 </script>
 
 </body>

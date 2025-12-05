@@ -314,59 +314,105 @@ def doctor_stats():
 
 # ==================== RUTAS COMPARTIDAS ====================
 
-@app.route('/register-patient')
+@app.route('/register-patient', methods=['GET', 'POST'])
 def register_patient():
-    """Página de registro de pacientes"""
-    if 'user_id' not in session:
-        flash('Debe iniciar sesión', 'error')
-        return redirect(url_for('login'))
-    
-    # Determinar a qué dashboard regresar
-    if session.get('rol') == 'admin':
-        dashboard_url = url_for('admin_dashboard')
-    else:
-        dashboard_url = url_for('doctor_dashboard')
-    
-    return render_template('register-patient.html',
-                         doctorName=session.get('nombre'),
-                         dashboard_url=dashboard_url)
 
-@app.route('/register-consultation')
+    if request.method == 'GET':
+        if 'user_id' not in session:
+            flash('Debe iniciar sesión', 'error')
+            return redirect(url_for('login'))
+
+        dashboard_url = url_for('admin_dashboard') if session.get('rol') == 'admin' else url_for('doctor_dashboard')
+
+        return render_template('register-patient.html',
+                               doctorName=session.get('nombre'),
+                               dashboard_url=dashboard_url)
+
+    # POST desde fetch()
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"success": False, "error": "Sin datos"})
+
+    owner = data.get("ownerName")
+    pname = data.get("patientName")
+    species = data.get("species")
+    breed = data.get("breed")
+    age = data.get("age")
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO pacientes (nombre, especie, raza, edad, nombre_dueno, telefono_dueno)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (pname, species, breed, age, owner, ""))  # si no tienes teléfono real
+
+        conn.commit()
+        conn.close()
+
+    except Exception as e:
+        print("Error BD:", e)
+        return jsonify({"success": False})
+
+    return jsonify({"success": True})
+
+@app.route('/register-consultation', methods=['GET', 'POST'])
 def register_consultation():
-    """Página de registro de consultas"""
-    if 'user_id' not in session:
-        flash('Debe iniciar sesión', 'error')
-        return redirect(url_for('login'))
-    
-    # Obtener lista de pacientes
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    if session.get('rol') == 'admin':
-        cursor.execute('SELECT * FROM pacientes ORDER BY nombre')
-    else:
-        # Doctor solo ve sus pacientes
-        cursor.execute('''
-            SELECT DISTINCT p.* 
-            FROM pacientes p
-            JOIN consultas c ON p.id = c.paciente_id
-            WHERE c.doctor_id = ?
-            ORDER BY p.nombre
-        ''', (session['user_id'],))
-    
-    pacientes = cursor.fetchall()
-    conn.close()
-    
-    # Determinar a qué dashboard regresar
-    if session.get('rol') == 'admin':
-        dashboard_url = url_for('admin_dashboard')
-    else:
-        dashboard_url = url_for('doctor_dashboard')
-    
-    return render_template('register-consultation.html',
-                         pacientes=pacientes,
-                         doctorName=session.get('nombre'),
-                         dashboard_url=dashboard_url)
+
+    # --- Si carga la página (GET) ---
+    if request.method == 'GET':
+        if 'user_id' not in session:
+            flash('Debe iniciar sesión', 'error')
+            return redirect(url_for('login'))
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, nombre, especie, raza, edad FROM pacientes ORDER BY nombre")
+        pacientes = cursor.fetchall()
+        conn.close()
+
+        dashboard_url = url_for('admin_dashboard') if session.get('rol') == 'admin' else url_for('doctor_dashboard')
+
+        return render_template(
+            'register-consultation.html',
+            doctorName=session.get('nombre'),
+            dashboard_url=dashboard_url,
+            patients=pacientes
+        )
+
+    # --- Si recibe los datos (POST vía fetch) ---
+    if request.method == 'POST':
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"success": False, "error": "Datos no recibidos"})
+
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                INSERT INTO consultas (paciente_id, doctor_id, fecha_consulta, motivo, diagnostico, estado)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                data["patientId"],
+                session.get("user_id"),
+                data["date"],
+                data["diagnosis"],
+                data["details"],
+                "pendiente"
+            ))
+
+            conn.commit()
+            conn.close()
+
+            return jsonify({"success": True})
+
+        except Exception as e:
+            print("Error BD:", e)
+            return jsonify({"success": False, "error": str(e)})
 
 @app.route('/historial-pacientes')
 def historial_pacientes():

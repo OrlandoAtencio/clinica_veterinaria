@@ -35,10 +35,6 @@
       <!-- Tarjeta de Login -->
       <div class="login-card">
         <h3 class="card-title">Iniciar Sesión</h3>
-        {% with messages = get_flashed_messages(with_categories=true) %} {% if
-        messages %} {% for category, message in messages %}
-        <div class="alert alert-{{ category }}">{{ message }}</div>
-        {% endfor %} {% endif %} {% endwith %}
         <form method="POST" action="{{ url_for('login_post') }}">
           <!-- Email -->
           <label for="email">Correo electrónico</label>
