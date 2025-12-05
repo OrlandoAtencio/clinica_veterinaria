@@ -9,12 +9,12 @@ html, body {
 
 body.login-background {
     font-family: "Segoe UI", sans-serif;
-    color: #0f3f3f;                   
+    color: #0f3f3f; 
     background-image: url("111.jpg"); 
-    background-size: cover;                        
-    background-repeat: no-repeat;                  
-    background-position: center;                  
-    display: flex;                                 
+    background-size: cover; 
+    background-repeat: no-repeat; 
+    background-position: center; 
+    display: flex; 
     justify-content: center;
     align-items: center;
 }
@@ -41,14 +41,9 @@ body.login-background {
     align-items: center;
     justify-content: center;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    background-image: url("1logo-vetcare.png");
 }
 
-.logo-img {
-    width: 45px;
-    height: 45px;
-    filter: brightness(0) invert(1); /* blanco */
-    margin-bottom: 5px;
-}
 
 .logo-title {
     color: white;
